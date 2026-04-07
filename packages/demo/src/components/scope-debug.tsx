@@ -88,12 +88,14 @@ export function ScopeDebug() {
   const liveFiltered = useMemo(() => {
     const activation = registry.getActiveScopeSnapshot()
     return filterCommandsForSurface(commands, activation, listSelection)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [registry, commands, listSelection, activationKey])
 
   const cmdkFiltered = useMemo(() => {
     if (!paletteOpen) return null
     const activation = snapshotPin ?? registry.getActiveScopeSnapshot()
     return filterCommandsForSurface(commands, activation, listSelection)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paletteOpen, snapshotPin, registry, commands, listSelection, activationKey])
 
   const hasScopes = scopes.length > 0
