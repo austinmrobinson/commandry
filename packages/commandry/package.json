@@ -49,6 +49,7 @@
     "react-dom": { "optional": true }
   },
   "devDependencies": {
+    "@types/node": "^20.0.0",
     "typescript": "^5.7.0",
     "tsup": "^8.0.0",
     "vitest": "^3.0.0",

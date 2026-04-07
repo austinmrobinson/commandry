@@ -13,7 +13,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18, 20]
+        # Next.js 16 requires Node >= 20.9.0
+        node-version: [20, 22]
 
     steps:
       - name: Checkout
