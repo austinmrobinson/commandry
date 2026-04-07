@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
   // Turbopack dev then resolves some CSS imports (e.g. `@import "tailwindcss"`) from
   // `packages/`; those packages must also exist in the root lockfile (see root package.json).
   outputFileTracingRoot: monorepoRoot,
+  turbopack: {
+    root: monorepoRoot,
+  },
 };
 
 export default nextConfig;

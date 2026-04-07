@@ -42,11 +42,15 @@
   },
   "peerDependencies": {
     "react": ">=18.0.0",
-    "react-dom": ">=18.0.0"
+    "react-dom": ">=18.0.0",
+    "tinykeys": ">=2.0.0",
+    "hotkeys-js": ">=3.0.0"
   },
   "peerDependenciesMeta": {
     "react": { "optional": true },
-    "react-dom": { "optional": true }
+    "react-dom": { "optional": true },
+    "tinykeys": { "optional": true },
+    "hotkeys-js": { "optional": true }
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -63,14 +67,19 @@
     "tinykeys": "^2.1.0",
     "hotkeys-js": "^3.13.0"
   },
+  "author": "Austin Robinson",
   "license": "MIT",
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/austin/commandry.git"
+    "url": "git+https://github.com/austinmrobinson/commandry.git",
+    "directory": "packages/commandry"
   },
-  "homepage": "https://github.com/austin/commandry#readme",
+  "homepage": "https://github.com/austinmrobinson/commandry#readme",
   "bugs": {
-    "url": "https://github.com/austin/commandry/issues"
+    "url": "https://github.com/austinmrobinson/commandry/issues"
   },
   "sideEffects": false,
   "keywords": [
