@@ -86,11 +86,13 @@ export function ScopeDebug() {
   )
 
   const liveFiltered = useMemo(() => {
+    void activationKey // subscribe via useSyncExternalStore; string changes when scope stack/context changes
     const activation = registry.getActiveScopeSnapshot()
     return filterCommandsForSurface(commands, activation, listSelection)
   }, [registry, commands, listSelection, activationKey])
 
   const cmdkFiltered = useMemo(() => {
+    void activationKey
     if (!paletteOpen) return null
     const activation = snapshotPin ?? registry.getActiveScopeSnapshot()
     return filterCommandsForSurface(commands, activation, listSelection)
