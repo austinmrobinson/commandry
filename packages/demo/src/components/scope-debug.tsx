@@ -68,10 +68,16 @@ export function ScopeDebug() {
   )
 
   /** Re-subscribe when scope stack or any scope context changes (not only scope *names*). */
-  const liveActivation = useSyncExternalStore(
+  const activationKey = useSyncExternalStore(
     registry.subscribe,
-    () => registry.getActiveScopeSnapshot(),
-    () => registry.getActiveScopeSnapshot(),
+    () => {
+      const snap = registry.getActiveScopeSnapshot()
+      const ctxEntries = [...snap.contexts.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => [k, v] as const)
+      return JSON.stringify({ scopes: snap.scopes, ctx: ctxEntries })
+    },
+    () => '',
   )
 
   const snapshotPin = useSyncExternalStore(
@@ -79,6 +85,12 @@ export function ScopeDebug() {
     () => registry.getActiveScopeSnapshotPin(),
     () => null,
   )
+
+  const liveActivation = useMemo(() => {
+    // keep activationKey as a subscription trigger for refreshed snapshots
+    void activationKey
+    return registry.getActiveScopeSnapshot()
+  }, [registry, activationKey])
 
   const liveFiltered = useMemo(() => {
     return filterCommandsForSurface(commands, liveActivation, listSelection)
