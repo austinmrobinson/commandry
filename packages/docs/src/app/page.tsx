@@ -1,65 +1,189 @@
-import Image from "next/image";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { OverviewHeroAnimation } from "@/app/components/overview-hero-animation";
+import { buttonVariants } from "@/app/components/ui/button";
+import { CodeBlock } from "@/app/components/code-block";
+import { DocProse } from "@/app/lib/doc-prose";
+import { cn } from "@/app/lib/utils";
 
-export default function Home() {
+const DEMO_SOURCE_URL =
+  "https://github.com/austinmrobinson/commandry/tree/main/packages/demo";
+
+export const metadata: Metadata = {
+  title: "Overview",
+};
+
+export default function OverviewPage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <DocProse>
+      <h1>Commandry</h1>
+      <figure className="not-prose relative my-1 aspect-video w-full overflow-hidden rounded-lg border border-black/[0.06] bg-[#f8f8f8] dark:border-white/10 dark:bg-[#141414]">
+        <span className="sr-only">
+          Demo: Commandry driving a command palette, context menus, and shortcuts from one registry
+        </span>
+        <OverviewHeroAnimation className="absolute inset-0" />
+      </figure>
+      <p className="text-base font-[450] text-black/65 dark:text-white/65">
+        One registry for every surface in your React app — command palettes, context menus,
+        toolbars, and keyboard shortcuts stay consistent because they read from the same
+        definitions.
+      </p>
+
+      <h2>Why Commandry?</h2>
+      <p>
+        Most apps scatter actions across files: a shortcut here, a menu label there. Labels
+        drift, shortcuts collide, and adding a feature means touching several components.
+        Commandry keeps each action&apos;s label, icon, shortcut, scope, and handler in one
+        place, then lets you surface it anywhere.
+      </p>
+
+      <div className="not-prose mt-4 flex flex-wrap gap-3">
+        <Link
+          href={DEMO_SOURCE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(buttonVariants({ variant: "outline" }), "no-underline")}
+        >
+          See demo
+        </Link>
+        <Link
+          href="/getting-started"
+          className={cn(buttonVariants({ variant: "default" }), "no-underline")}
+        >
+          Install
+        </Link>
+      </div>
+
+      <h2>How it works</h2>
+
+      <div className="not-prose mt-2 flex flex-col gap-8">
+        <section>
+          <h3 className="mb-2 text-base font-semibold tracking-tight text-[#111] dark:text-[#e8e8e8]">
+            1. Define scopes
+          </h3>
+          <p className="mb-2 text-base font-[450] leading-normal text-black/65 dark:text-white/65">
+            Mirror your UI tree in <code className="rounded bg-black/[0.04] px-1 py-0.5 font-mono text-base dark:bg-white/[0.08]">scopes</code> — nesting is the parent/child relationship.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+          <CodeBlock title="lib/commandry.ts">{`import { createCommandry } from 'commandry'
+
+export const { registry, defineCommands } = createCommandry({
+  scopes: {
+    page: {
+      children: {
+        'task-list': {
+          children: { 'task-item': {} },
+        },
+        canvas: {
+          children: { 'canvas-node': {} },
+        },
+      },
+    },
+  },
+})`}</CodeBlock>
+        </section>
+
+        <section>
+          <h3 className="mb-2 text-base font-semibold tracking-tight text-[#111] dark:text-[#e8e8e8]">
+            2. Register commands
+          </h3>
+          <p className="mb-2 text-base font-[450] leading-normal text-black/65 dark:text-white/65">
+            Colocate commands with features; scope comes from the nearest{" "}
+            <code className="rounded bg-black/[0.04] px-1 py-0.5 font-mono text-base dark:bg-white/[0.08]">CommandScope</code>.
+          </p>
+          <CodeBlock title="features/tasks/commands.ts">{`import { Plus, Trash2 } from 'lucide-react'
+import { defineCommands } from '@/lib/commandry'
+
+export const taskCommands = defineCommands({
+  'task.create': {
+    label: 'New Task',
+    icon: Plus,
+    shortcut: [['n']],
+    group: 'Tasks',
+    handler: () => createTask(),
+  },
+  'task.delete': {
+    label: 'Delete Task',
+    icon: Trash2,
+    shortcut: [['Backspace']],
+    group: 'Tasks',
+    handler: ({ ctx }) => deleteTask(ctx.taskId),
+  },
+})`}</CodeBlock>
+        </section>
+
+        <section>
+          <h3 className="mb-2 text-base font-semibold tracking-tight text-[#111] dark:text-[#e8e8e8]">
+            3. Provider &amp; scopes
+          </h3>
+          <p className="mb-2 text-base font-[450] leading-normal text-black/65 dark:text-white/65">
+            Wrap the app with the provider, then nest{" "}
+            <code className="rounded bg-black/[0.04] px-1 py-0.5 font-mono text-base dark:bg-white/[0.08]">CommandScope</code> and{" "}
+            <code className="rounded bg-black/[0.04] px-1 py-0.5 font-mono text-base dark:bg-white/[0.08]">useRegisterCommands</code> where commands should apply.
+          </p>
+          <CodeBlock title="app/layout.tsx & feature">{`import { CommandryProvider, CommandScope, useRegisterCommands } from 'commandry/react'
+import { registry } from '@/lib/commandry'
+import { taskCommands } from '@/features/tasks/commands'
+
+export function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <CommandryProvider registry={registry}>{children}</CommandryProvider>
+  )
+}
+
+function TaskList({ listId }: { listId: string }) {
+  return (
+    <CommandScope scope="task-list" ctx={{ listId }}>
+      {tasks.map((task) => (
+        <CommandScope key={task.id} scope="task-item" ctx={{ taskId: task.id, task }}>
+          <TaskItem task={task} />
+        </CommandScope>
+      ))}
+    </CommandScope>
+  )
+}
+
+function TaskItem({ task }: { task: Task }) {
+  useRegisterCommands(taskCommands)
+  return <TaskRow task={task} />
+}`}</CodeBlock>
+        </section>
+
+        <section>
+          <h3 className="mb-2 text-base font-semibold tracking-tight text-[#111] dark:text-[#e8e8e8]">
+            4. Render surfaces
+          </h3>
+          <p className="mb-2 text-base font-[450] leading-normal text-black/65 dark:text-white/65">
+            Read the same registry in a toolbar, cmdk palette, or context menu — here, listing resolved commands for the active scope.
+          </p>
+          <CodeBlock title="components/quick-toolbar.tsx">{`'use client'
+
+import { useCommands } from 'commandry/react'
+
+export function QuickToolbar() {
+  const commands = useCommands()
+
+  return (
+    <div className="flex gap-2">
+      {commands.map((cmd) => (
+        <button
+          key={cmd.id}
+          type="button"
+          disabled={cmd.disabled}
+          onClick={() => void cmd.execute()}
+        >
+          {cmd.label}
+        </button>
+      ))}
     </div>
+  )
+}`}</CodeBlock>
+          <p className="mt-2 text-base font-[450] leading-normal text-black/55 dark:text-white/55">
+            For search + cmdk, use{" "}
+            <code className="rounded bg-black/[0.04] px-1 py-0.5 font-mono text-base dark:bg-white/[0.08]">useCommandSearch</code>{" "}
+            and wire results into your palette component — see the repo demo app.
+          </p>
+        </section>
+      </div>
+    </DocProse>
   );
 }
