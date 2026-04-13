@@ -1,3 +1,6 @@
+# Monorepo uses root pnpm-lock.yaml only; nested locks break frozen CI installs.
+packages/*/pnpm-lock.yaml
+
 node_modules/
 dist/
 .next/
