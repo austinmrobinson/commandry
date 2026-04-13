@@ -48,6 +48,9 @@
     "react": { "optional": true },
     "react-dom": { "optional": true }
   },
+  "dependencies": {
+    "@radix-ui/react-slot": "^1.2.4"
+  },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "typescript": "^5.7.0",

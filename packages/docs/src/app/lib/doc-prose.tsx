@@ -12,7 +12,7 @@ export function DocProse({
     <article
       className={cn(
         "docs-article prose max-w-none dark:prose-invert",
-        "flex flex-col gap-2.5",
+        "block",
         "prose-headings:font-normal",
         "prose-a:font-[450] prose-a:text-[#2480ed] prose-a:no-underline hover:prose-a:text-[#74b1fd]",
         "dark:prose-a:text-sky-400 dark:hover:prose-a:text-sky-300",

@@ -5,18 +5,16 @@ import { RiMenuLine } from "@remixicon/react";
 import { buttonVariants } from "@/app/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/app/components/ui/sheet";
 import { DocsSidebarContent } from "@/app/components/docs-sidebar-content";
-import { ThemeToggle } from "@/app/components/theme-toggle";
 import { cn } from "@/app/lib/utils";
 
-/** Mobile nav + theme — fixed corner, no full-width header bar */
+/** Mobile nav — fixed corner; desktop uses persistent sidebar (no floating chrome). */
 export function DocsFloatingControls() {
   const [open, setOpen] = React.useState(false);
 
   return (
     <div
       className={cn(
-        "fixed right-4 z-50 flex items-center gap-2",
-        "top-4 min-[980px]:top-6"
+        "fixed right-4 top-4 z-50 flex items-center gap-2 min-[980px]:hidden"
       )}
     >
       <Sheet open={open} onOpenChange={setOpen}>
@@ -34,10 +32,12 @@ export function DocsFloatingControls() {
           side="left"
           className="w-72 border-black/[0.06] bg-[#fdfdfc] p-0 dark:border-white/10 dark:bg-[#0c0c0c]"
         >
-          <DocsSidebarContent onLinkClick={() => setOpen(false)} />
+          <DocsSidebarContent
+            showInlineLogo
+            onLinkClick={() => setOpen(false)}
+          />
         </SheetContent>
       </Sheet>
-      <ThemeToggle />
     </div>
   );
 }

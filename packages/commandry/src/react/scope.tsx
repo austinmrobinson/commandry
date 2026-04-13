@@ -1,4 +1,11 @@
-import { useContext, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { Slot } from '@radix-ui/react-slot'
+import {
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  type ReactNode,
+} from 'react'
 import { CommandryContext, ScopeContext } from './context'
 
 /** Optional ids on the scope root for UIs that need to disambiguate duplicate scopes (e.g. context menus). */
@@ -13,6 +20,13 @@ export interface CommandScopeProps {
   activateOn?: 'mount' | 'pointer' | 'focus' | 'both'
   /** Rendered as `data-commandry-thread-id` / `data-commandry-message-id` on the scope root. */
   anchor?: CommandScopeAnchor
+  /**
+   * Merge props onto the single child instead of rendering a wrapper `div`.
+   * The child must be a React element that can hold a ref (native element or `forwardRef`).
+   */
+  asChild?: boolean
+  /** Applied to the default wrapper `div`, or merged onto the child when `asChild` is true. */
+  className?: string
   children: ReactNode
 }
 
@@ -21,6 +35,8 @@ export function CommandScope({
   ctx,
   activateOn = 'pointer',
   anchor,
+  asChild = false,
+  className,
   children,
 }: CommandScopeProps) {
   const commandryCtx = useContext(CommandryContext)
@@ -29,7 +45,7 @@ export function CommandScope({
   }
   const { registry } = commandryCtx
   const parentScopeCtx = useContext(ScopeContext)
-  const ref = useRef<HTMLDivElement>(null)
+  const ref = useRef<HTMLDivElement | null>(null)
   const mountHolderIdRef = useRef<number | null>(null)
   const pointerHolderIdRef = useRef<number | null>(null)
   const ctxSyncKeyRef = useRef<string>('')
@@ -101,20 +117,27 @@ export function CommandScope({
     registry.updateScopeHolderContext(id, ctx)
   }, [activateOn, scope, registry, ctx])
 
+  const dataProps = {
+    'data-commandry-scope': scope,
+    ...(anchor?.threadId != null && anchor.threadId !== ''
+      ? { 'data-commandry-thread-id': anchor.threadId }
+      : {}),
+    ...(anchor?.messageId != null && anchor.messageId !== ''
+      ? { 'data-commandry-message-id': anchor.messageId }
+      : {}),
+  } as const
+
   return (
     <ScopeContext.Provider value={scopeContextValue}>
-      <div
-        ref={ref}
-        data-commandry-scope={scope}
-        {...(anchor?.threadId != null && anchor.threadId !== ''
-          ? { 'data-commandry-thread-id': anchor.threadId }
-          : {})}
-        {...(anchor?.messageId != null && anchor.messageId !== ''
-          ? { 'data-commandry-message-id': anchor.messageId }
-          : {})}
-      >
-        {children}
-      </div>
+      {asChild ? (
+        <Slot ref={ref} className={className} {...dataProps}>
+          {children}
+        </Slot>
+      ) : (
+        <div ref={ref} className={className} {...dataProps}>
+          {children}
+        </div>
+      )}
     </ScopeContext.Provider>
   )
 }

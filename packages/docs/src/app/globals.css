@@ -1,9 +1,32 @@
 @import "tailwindcss";
+@import "sonner/dist/styles.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Touch / coarse pointer: row actions have no :hover — keep them visible */
+@media (any-pointer: coarse) {
+  .item-actions-reveal {
+    opacity: 1;
+  }
+}
+
 @custom-variant dark (&:is(.dark *));
 @plugin "@tailwindcss/typography";
+
+@layer base {
+  :root {
+    /* Overview hero shortcut keycap — matches Commandry logo inset bevel */
+    --hero-keycap-rest-shadow: inset 0 2.5px 0 0 rgba(255, 255, 255, 0.22),
+      inset 0 -2.5px 0 0 #000;
+    /* Pressed: no top highlight; single dark inset from top (3px y) */
+    --hero-keycap-pressed-shadow: inset 0 3px 8px -2px rgba(0, 0, 0, 0.58);
+  }
+  .dark {
+    --hero-keycap-rest-shadow: inset 0 2.5px 0 0 rgba(255, 255, 255, 0.18),
+      inset 0 -2.5px 0 0 #000;
+    --hero-keycap-pressed-shadow: inset 0 3px 8px -2px rgba(0, 0, 0, 0.72);
+  }
+}
 
 @theme {
   /* Custom breakpoint */
@@ -12,6 +35,8 @@
   /* Font families (Lora via next/font --font-lora; matches dotcom) */
   --font-sans: var(--font-lora);
   --font-mono: var(--font-geist-mono);
+  /* Hand-drawn marker (Permanent Marker via next/font --font-marker) */
+  --font-hand-marker: var(--font-marker), ui-sans-serif, system-ui, sans-serif;
 
   /* Custom keyframes */
   @keyframes overlayShow {
@@ -34,9 +59,23 @@
     }
   }
 
+  /* Overview hero: single-key shortcut feedback — keycap “press” */
+  @keyframes heroShortcutKeyPress {
+    0%,
+    100% {
+      transform: translateY(0) scale(1);
+      box-shadow: var(--hero-keycap-rest-shadow);
+    }
+    35% {
+      transform: translateY(5px) scale(0.94);
+      box-shadow: var(--hero-keycap-pressed-shadow);
+    }
+  }
+
   /* Custom animations */
   --animate-overlayShow: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
   --animate-contentShow: contentShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-heroShortcutKeyPress: heroShortcutKeyPress 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* shadcn/ui theme inline - maps CSS variables to Tailwind colors */
@@ -329,13 +368,138 @@ body {
   }
   html {
     @apply font-serif;
+    /* Avoid horizontal jump when dialogs (cmdk) toggle body overflow / scroll lock */
+    scrollbar-gutter: stable;
   }
 }
 
+/* Overview hero: pin Sonner list to the demo card (library defaults to fixed/viewport) */
+.overview-hero-toast-host [data-sonner-toaster] {
+  position: absolute !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  padding-left: 0.75rem !important;
+  padding-right: 0.75rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  /* Match docs UI (`@theme --font-sans` / Button); Sonner defaults to ui-sans-serif. */
+  font-family: var(--font-sans), var(--font-serif), ui-serif, Georgia, serif !important;
+}
+
+/* Same chip as `TooltipContent`: `bg-foreground` / `text-background`, `--radius-md`. */
+.overview-hero-toast-host [data-sonner-toast][data-styled="true"] {
+  border-radius: var(--radius-md) !important;
+  background: var(--foreground) !important;
+  border-color: transparent !important;
+  color: var(--background) !important;
+  box-shadow: none !important;
+}
+
+/* Overview hero: quicker toast exit (default Sonner transition is slower) */
+.overview-hero-toast-host [data-sonner-toast] {
+  transition-duration: 0.18s;
+}
+
+/*
+ * Overview hero code panel: tab strip scopes light/system tokens for inactive tabs while `html` may
+ * be `.dark`; the strip itself is transparent so the parent surface shows through. Active tab +
+ * code panel stay on `.dark` tokens (see wrapper in component).
+ */
+.overview-hero-code-tablist-chrome {
+  /* Mirrors `:root` tokens so inactive tabs read as light chrome while `html` may be `.dark`. */
+  --background: oklch(0.985 0.008 80);
+  --foreground: oklch(0.147 0.007 65);
+  --muted: oklch(0.955 0.008 75);
+  --muted-foreground: oklch(0.480 0.035 50);
+  --border: oklch(0.918 0.010 75);
+  background-color: transparent;
+}
+
+/* Active tab uses `.dark` `--background` / `--foreground` so it meets the code panel below. */
+.overview-hero-code-tablist-chrome [role="tab"][data-state="active"],
+.overview-hero-code-tablist-chrome [role="tab"][aria-selected="true"] {
+  background-color: oklch(0.150 0.008 65) !important;
+  color: oklch(0.930 0.010 80) !important;
+  border-color: oklch(0.985 0.008 80 / 10%) !important;
+}
+
+.overview-hero-code-tablist-chrome [role="tab"][data-state="active"]::after,
+.overview-hero-code-tablist-chrome [role="tab"][aria-selected="true"]::after {
+  background-color: oklch(0.150 0.008 65) !important;
+}
+
+/* No rule line under the tab row (TabsList + inactive trigger `border-b` removed for this strip). */
+.overview-hero-code-tablist-chrome [role="tab"][data-state="inactive"] {
+  border-bottom-width: 0 !important;
+}
+
+/*
+ * Overview hero Commands tab: line-based highlight (rehype-pretty-code / shadcn taxonomy pattern).
+ * @see https://tx.shadcn.com/docs/documentation/code-blocks
+ */
+/* Strip Shiki theme inline pre background so code area matches page `background` (and active tab). */
+.overview-hero-code-shiki pre.shiki,
+.overview-hero-registry-shiki pre.shiki {
+  background-color: transparent !important;
+}
+
+.overview-hero-registry-shiki [data-line] {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  margin-left: -0.75rem;
+  margin-right: -0.75rem;
+  display: inline-block;
+  min-width: 100%;
+  box-sizing: border-box;
+  border-left: 3px solid transparent;
+  border-radius: 0;
+}
+
+/* Match overview hint arrows/annotations (`text-green-600` / `dark:text-green-400`): soft fill + solid bar. */
+.overview-hero-registry-shiki [data-highlighted-line] {
+  background-color: rgb(22 163 69 / 0.14) !important;
+  border-left-color: rgb(22 163 69);
+  border-left-style: solid;
+}
+
+.dark .overview-hero-registry-shiki [data-highlighted-line] {
+  background-color: rgb(74 222 128 / 0.16) !important;
+  border-left-color: rgb(74 222 128);
+}
+
+/* Token spans can carry Shiki inline backgrounds; clear them inside a highlighted line so the row fill shows. */
+.overview-hero-registry-shiki [data-highlighted-line] span {
+  background-color: transparent !important;
+}
+
+/* Do not set a single `color` on `.shiki span` under `.dark` — the hero panel uses a nested `.dark`
+ * scope + `vitesse-dark`; forcing `var(--shiki-dark)` on every token flattens syntax highlighting. */
+
 /* Docs: Agentation-inspired typography & h2 rule (schema page) */
 @layer components {
+  .hero-shortcut-keycap {
+    box-shadow: var(--hero-keycap-rest-shadow);
+  }
+
   .docs-site {
     font-family: var(--font-lora), var(--font-serif), Georgia, ui-serif, serif;
+    /**
+     * Fixed `DocsSiteLogo` stack (pt-6 + pt-10 + pt-1 + h-10 @ ≥980px).
+     * Sticky aside uses (stack − sidebar header spacer) so nav clears the mark when stuck.
+     */
+    --docs-logo-stack: calc(1.5rem + 2.5rem + 0.25rem + 2.5rem);
+    --docs-sidebar-header-spacer: 2.5rem;
+    /** Rail inset when the 2.5rem header spacer is present (non-overview desktop). */
+    --docs-sidebar-sticky-top: calc(
+      var(--docs-logo-stack) - var(--docs-sidebar-header-spacer)
+    );
+    /** Extra gap below fixed logo before sticky rail (e.g. 16px). */
+    --docs-sidebar-sticky-extra: 1rem;
   }
 
   /* All article headings use Lora (same as body), not Merriweather (--font-heading). */
@@ -343,8 +507,7 @@ body {
     font-family: var(--font-lora), var(--font-serif), Georgia, ui-serif, serif;
   }
 
-  /* Flex `gap` on .docs-article supplies vertical rhythm; keep heading margins small
-     so they don’t stack with gap + prose paragraph margins. */
+  /* `DocProse` is `block`; keep heading margins small so they don’t stack with paragraph margins. */
   .docs-site .docs-article.prose h1 {
     margin-top: 0;
     margin-bottom: 0;
@@ -405,8 +568,42 @@ body {
     color: rgba(17, 17, 17, 0.8);
   }
 
+  .docs-site .docs-article.prose > p + p {
+    margin-top: 0.625rem;
+  }
+
   .dark .docs-site .docs-article.prose p {
     color: rgba(232, 232, 232, 0.82);
+  }
+
+  /**
+   * Collapse default prose trailing margins on direct children; first block has no
+   * extra top margin. Paragraph-to-paragraph spacing uses `> p + p` above.
+   */
+  .docs-site .docs-article.prose > * {
+    margin-block-end: 0;
+  }
+
+  .docs-site .docs-article.prose > :first-child {
+    margin-block-start: 0;
+  }
+
+  .docs-site .docs-article.prose > h2:not(:first-child) {
+    margin-top: 1.125rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .docs-site .docs-article.prose > h2:first-child {
+    margin-top: 0;
+  }
+
+  .docs-site .docs-article.prose > h3:not(:first-child) {
+    margin-top: 0.875rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .docs-site .docs-article.prose > h3:first-child {
+    margin-top: 0;
   }
 
   .docs-site .docs-article.prose ul > li,

@@ -6,7 +6,13 @@ import { TooltipProvider } from "@/app/components/ui/tooltip";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+      storageKey="commandry-docs-theme"
+    >
       <TooltipProvider>{children}</TooltipProvider>
     </ThemeProvider>
   );

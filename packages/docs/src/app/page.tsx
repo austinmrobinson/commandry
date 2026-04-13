@@ -1,13 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { OverviewHeroAnimation } from "@/app/components/overview-hero-animation";
 import { buttonVariants } from "@/app/components/ui/button";
 import { CodeBlock } from "@/app/components/code-block";
 import { DocProse } from "@/app/lib/doc-prose";
 import { cn } from "@/app/lib/utils";
-
-const DEMO_SOURCE_URL =
-  "https://github.com/austinmrobinson/commandry/tree/main/packages/demo";
 
 export const metadata: Metadata = {
   title: "Overview",
@@ -17,19 +13,12 @@ export default function OverviewPage() {
   return (
     <DocProse>
       <h1>Commandry</h1>
-      <figure className="not-prose relative my-1 aspect-video w-full overflow-hidden rounded-lg border border-black/[0.06] bg-[#f8f8f8] dark:border-white/10 dark:bg-[#141414]">
-        <span className="sr-only">
-          Demo: Commandry driving a command palette, context menus, and shortcuts from one registry
-        </span>
-        <OverviewHeroAnimation className="absolute inset-0" />
-      </figure>
       <p className="text-base font-[450] text-black/65 dark:text-white/65">
         One registry for every surface in your React app — command palettes, context menus,
         toolbars, and keyboard shortcuts stay consistent because they read from the same
         definitions.
       </p>
 
-      <h2>Why Commandry?</h2>
       <p>
         Most apps scatter actions across files: a shortcut here, a menu label there. Labels
         drift, shortcuts collide, and adding a feature means touching several components.
@@ -38,14 +27,6 @@ export default function OverviewPage() {
       </p>
 
       <div className="not-prose mt-4 flex flex-wrap gap-3">
-        <Link
-          href={DEMO_SOURCE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={cn(buttonVariants({ variant: "outline" }), "no-underline")}
-        >
-          See demo
-        </Link>
         <Link
           href="/getting-started"
           className={cn(buttonVariants({ variant: "default" }), "no-underline")}

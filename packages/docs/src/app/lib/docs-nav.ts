@@ -25,6 +25,38 @@ export const docsNav: NavSection[] = [
   { title: "Adapters", href: "/adapters" },
 ];
 
+/** Flat reading order (matches sidebar). */
+export function flattenDocsNav(): NavItem[] {
+  const out: NavItem[] = [];
+  for (const section of docsNav) {
+    if (section.href) out.push({ title: section.title, href: section.href });
+    if (section.children) {
+      for (const child of section.children) out.push(child);
+    }
+  }
+  return out;
+}
+
+function normalizeDocPath(pathname: string): string {
+  if (!pathname || pathname === "/") return "/";
+  const trimmed = pathname.replace(/\/+$/, "");
+  return trimmed === "" ? "/" : trimmed;
+}
+
+export function getDocNeighbors(pathname: string): {
+  prev?: NavItem;
+  next?: NavItem;
+} {
+  const flat = flattenDocsNav();
+  const path = normalizeDocPath(pathname);
+  const idx = flat.findIndex((item) => normalizeDocPath(item.href) === path);
+  if (idx === -1) return {};
+  return {
+    prev: idx > 0 ? flat[idx - 1] : undefined,
+    next: idx < flat.length - 1 ? flat[idx + 1] : undefined,
+  };
+}
+
 /** Slug segment(s) for metadata / titles — empty string = overview `/` */
 export const docTitles: Record<string, string> = {
   "": "Overview",

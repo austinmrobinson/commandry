@@ -10,7 +10,13 @@ export default defineConfig([
     },
     format: ['esm', 'cjs'],
     dts: true,
-    external: ['react', 'react-dom', 'tinykeys', 'hotkeys-js'],
+    external: [
+      'react',
+      'react-dom',
+      'tinykeys',
+      'hotkeys-js',
+      '@radix-ui/react-slot',
+    ],
     outExtension({ format }) {
       return { js: format === 'esm' ? '.mjs' : '.cjs' }
     },
