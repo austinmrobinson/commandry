@@ -77,6 +77,7 @@ export function ScopeDebug() {
         .map(([k, v]) => [k, v] as const)
       return JSON.stringify({ scopes: snap.scopes, ctx: ctxEntries })
     },
+    () => '',
   )
 
   const snapshotPin = useSyncExternalStore(
@@ -85,16 +86,21 @@ export function ScopeDebug() {
     () => null,
   )
 
+  const liveActivation = useMemo(() => {
+    // keep activationKey as a subscription trigger for refreshed snapshots
+    void activationKey
+    return registry.getActiveScopeSnapshot()
+  }, [registry, activationKey])
+
   const liveFiltered = useMemo(() => {
-    const activation = registry.getActiveScopeSnapshot()
-    return filterCommandsForSurface(commands, activation, listSelection)
-  }, [registry, commands, listSelection, activationKey])
+    return filterCommandsForSurface(commands, liveActivation, listSelection)
+  }, [commands, listSelection, liveActivation])
 
   const cmdkFiltered = useMemo(() => {
     if (!paletteOpen) return null
-    const activation = snapshotPin ?? registry.getActiveScopeSnapshot()
+    const activation = snapshotPin ?? liveActivation
     return filterCommandsForSurface(commands, activation, listSelection)
-  }, [paletteOpen, snapshotPin, registry, commands, listSelection, activationKey])
+  }, [paletteOpen, snapshotPin, commands, listSelection, liveActivation])
 
   const hasScopes = scopes.length > 0
   const activeScope = hasScopes ? scopes[scopes.length - 1] : null

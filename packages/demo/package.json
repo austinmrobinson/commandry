@@ -6,7 +6,7 @@
     "predev": "node ./scripts/clear-stale-next-dev-lock.mjs",
     "dev": "next dev --webpack",
     "dev:turbo": "next dev",
-    "build": "next build",
+    "build": "pnpm --filter commandry build && next build",
     "start": "next start",
     "lint": "eslint",
     "test:e2e": "playwright test",

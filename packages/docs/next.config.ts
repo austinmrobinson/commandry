@@ -1,8 +1,13 @@
 import type { NextConfig } from "next";
-import path from "path";
-import { fileURLToPath } from "url";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const monorepoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+/** Monorepo root — resolved from this file so it stays correct regardless of `process.cwd()`. */
+const monorepoRoot = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+);
 
 const nextConfig: NextConfig = {
   turbopack: {

@@ -32,7 +32,7 @@ npm install commandry
 
 Scopes define *where* commands are active — which part of the UI the user is interacting with. Pass a nested `scopes` object to `createCommandry` that mirrors your UI hierarchy. The nesting *is* the parent-child relationship — no need to declare it separately.
 
-`createCommandry` returns only the **registry** and a `defineCommands` helper. All React exports (`CommandryProvider`, `CommandScope`, hooks) come from `**commandry/react`** — import them there, or re-export from your own `@/lib/commandry` module for convenience.
+`createCommandry` returns only the **registry** and a `defineCommands` helper. All React exports (`CommandryProvider`, `CommandScope`, hooks) come from **`commandry/react`** — import them there, or re-export from your own `@/lib/commandry` module for convenience.
 
 ```tsx
 // lib/commandry.ts
@@ -148,7 +148,7 @@ That's it. Keyboard shortcuts are active. Scoping works. Now you just need UI to
 
 ### Stable command maps (`useRegisterCommands`)
 
-`useRegisterCommands` depends on the `**commands` object reference**. Passing a new inline object every render will unregister and re-register repeatedly. Prefer a module-level `defineCommands({ ... })` map, or memoize:
+`useRegisterCommands` depends on the **`commands` object reference**. Passing a new inline object every render will unregister and re-register repeatedly. Prefer a module-level `defineCommands({ ... })` map, or memoize:
 
 ```tsx
 const commands = useMemo(
@@ -175,9 +175,9 @@ When several items are selected, you may want shortcuts to prefer **bulk** actio
 
 ### `activateOn`: `pointer`, `focus`, `mount`, or `both`
 
-- `**pointer`** (default) — scope follows hover; best for canvas-like surfaces.
-- `**focus`** / `**both`** — better when keyboard navigation should drive scope without pointer hover.
-- `**mount**` — scope is active whenever the subtree is mounted; useful for app shells or layouts where pointer scoping is fragile (mail clients, split panes).
+- **`pointer`** (default) — scope follows hover; best for canvas-like surfaces.
+- **`focus`** / **`both`** — better when keyboard navigation should drive scope without pointer hover.
+- **`mount`** — scope is active whenever the subtree is mounted; useful for app shells or layouts where pointer scoping is fragile (mail clients, split panes).
 
 ---
 
@@ -483,7 +483,7 @@ Most commands are simple actions. But some need richer behavior:
 
 ### Scopes
 
-Scopes define where commands are active. They form a tree that mirrors your UI hierarchy. Configure that tree in `**createCommandry({ scopes: { … } })**` — nesting determines the parent-child relationship. You can mirror the same shape in a TypeScript type in your app for documentation or helpers.
+Scopes define where commands are active. They form a tree that mirrors your UI hierarchy. Configure that tree in **`createCommandry({ scopes: { … } })`** — nesting determines the parent-child relationship. You can mirror the same shape in a TypeScript type in your app for documentation or helpers.
 
 ```tsx
 type Scopes = {
@@ -716,7 +716,7 @@ const { results, search, setSearch } = useCommandSearch({
 })
 ```
 
-For cmdk, if opening the dialog moves focus and drops pointer scopes, pass `**scopes` from a snapshot** taken synchronously on open (see [Command palette: pinning active scopes](#command-palette-pinning-active-scopes)).
+For cmdk, if opening the dialog moves focus and drops pointer scopes, pass **`scopes` from a snapshot** taken synchronously on open (see [Command palette: pinning active scopes](#command-palette-pinning-active-scopes)).
 
 ### `useRegisterCommands(commands, options?)`
 
@@ -728,7 +728,7 @@ useRegisterCommands(editorCommands, {
 })
 ```
 
-Keep the `**commands` reference stable** — see [Stable command maps (`useRegisterCommands`)](#stable-command-maps-useregistercommands).
+Keep the **`commands` reference stable** — see [Stable command maps (`useRegisterCommands`)](#stable-command-maps-useregistercommands).
 
 ### `useShortcutDisplay(shortcut, index?)`
 
