@@ -16,8 +16,8 @@ Commandry fixes this:
 
 - **Define once** — a command's label, icon, shortcut, scope, and handler live together
 - **Surface anywhere** — the same command appears in cmdk, context menus, toolbars, and responds to keyboard shortcuts automatically
-- **Scope-aware** — hovering over a list item scopes shortcuts and palette results to that item. Hovering over the canvas scopes to the canvas. Like Figma and Linear.
-- **TypeScript-friendly** — command definitions and resolved commands are typed; handler `ctx` is merged scope context as `Record<string, unknown>` (narrow in your handlers as needed). A scope tree in `createCommandry({ scopes })` enables dev warnings for unknown scope names and incompatible active scopes.
+- **Region-aware** — hovering over a list item scopes shortcuts and palette results to that item. Hovering over the canvas scopes to the canvas. Like Figma and Linear.
+- **TypeScript-friendly** — command definitions and resolved commands are typed; handler `ctx` is merged region context as `Record<string, unknown>` (narrow in your handlers as needed). Optional `satisfies CommandDefinitionMap` keeps command maps type-safe without boilerplate helpers.
 - **Consistent** — dev-only warnings for shortcut collisions and shadowing; optional devtools panel. Planned: `@commandry/eslint-plugin` and `commandry audit` CLI for labels, icons, and shortcuts ([Roadmap](#roadmap))
 
 ## Install
@@ -28,42 +28,20 @@ npm install commandry
 
 ## Quick start
 
-### 1. Configure your scopes and registry
+### 1. Create the registry
 
-Scopes define *where* commands are active — which part of the UI the user is interacting with. Pass a nested `scopes` object to `createCommandry` that mirrors your UI hierarchy. The nesting *is* the parent-child relationship — no need to declare it separately.
+Regions define *where* commands are active — which part of the UI the user is interacting with. Nesting `<CommandRegion>` in JSX *is* the hierarchy; there is no parallel scope tree config.
 
-`createCommandry` returns only the **registry** and a `defineCommands` helper. All React exports (`CommandryProvider`, `CommandScope`, hooks) come from **`commandry/react`** — import them there, or re-export from your own `@/lib/commandry` module for convenience.
+`createRegistry()` returns only the **registry**. All React exports (`CommandryProvider`, `CommandRegion`, hooks) come from **`commandry/react`** — import them there, or re-export from your own `@/lib/commandry` module for convenience.
 
 ```tsx
 // lib/commandry.ts
-import { createCommandry } from 'commandry'
+import { createRegistry } from 'commandry'
 
-/** Optional: mirror `scopes` in a type for documentation and app-level helpers. */
-type _ScopeNames =
-  | 'page'
-  | 'task-list'
-  | 'task-item'
-  | 'canvas'
-  | 'canvas-node'
+/** Optional: union of region tags you use across the app. */
+export type Region = 'page' | 'task-list' | 'task-item' | 'canvas' | 'canvas-node'
 
-export const { registry, defineCommands } = createCommandry({
-  scopes: {
-    page: {
-      children: {
-        'task-list': {
-          children: {
-            'task-item': {},
-          },
-        },
-        canvas: {
-          children: {
-            'canvas-node': {},
-          },
-        },
-      },
-    },
-  },
-})
+export const registry = createRegistry()
 ```
 
 ### 2. Define commands where they live
@@ -72,9 +50,9 @@ Commands are colocated with the features they belong to — not centralized in o
 
 ```tsx
 // features/tasks/commands.ts
-import { defineCommands } from '@/lib/commandry'
+import type { CommandDefinitionMap } from 'commandry'
 
-export const taskCommands = defineCommands({
+export const taskCommands = {
   'task.create': {
     label: 'New Task',
     icon: Plus,
@@ -90,10 +68,10 @@ export const taskCommands = defineCommands({
     danger: true,
     handler: ({ ctx }) => deleteTask(ctx.taskId),
   },
-})
+} satisfies CommandDefinitionMap
 ```
 
-Notice there's no `scope` on these commands. They'll inherit their scope from whichever `CommandScope` they're registered inside.
+Notice there's no `scope` on these commands. They'll inherit their region from whichever `CommandRegion` they're registered inside.
 
 ### 3. Wire up the provider
 
@@ -113,32 +91,33 @@ export default function Layout({ children }) {
 
 ### 4. Register commands from components
 
-Commands register when a component mounts and unregister when it unmounts. They inherit the scope from the nearest `CommandScope` ancestor — no need to repeat it on every definition.
+Commands register when a component mounts and unregister when it unmounts. They inherit the region from the nearest `CommandRegion` ancestor — no need to repeat it on every definition.
 
 ```tsx
 // features/tasks/task-list.tsx
-import { CommandScope, useRegisterCommands } from 'commandry/react'
-// Often: re-export these from @/lib/commandry alongside registry / defineCommands
+import { CommandRegion, useRegisterCommands } from 'commandry/react'
+// Often: re-export these from @/lib/commandry alongside registry
 import { taskCommands } from './commands'
 
 function TaskList({ tasks, listId }) {
   return (
-    <CommandScope scope="task-list" ctx={{ listId }}>
+    <CommandRegion region="task-list" ctx={{ listId }}>
       {tasks.map(task => (
-        <CommandScope
+        <CommandRegion
           key={task.id}
-          scope="task-item"
+          region="task-item"
           ctx={{ taskId: task.id, task }}
+          anchor={{ taskId: task.id }}
         >
           <TaskItem task={task} />
-        </CommandScope>
+        </CommandRegion>
       ))}
-    </CommandScope>
+    </CommandRegion>
   )
 }
 
 function TaskItem({ task }) {
-  useRegisterCommands(taskCommands) // inherits scope 'task-item' from parent
+  useRegisterCommands(taskCommands) // inherits region 'task-item' from parent
 
   return <TaskRow task={task} />
 }
@@ -148,14 +127,14 @@ That's it. Keyboard shortcuts are active. Scoping works. Now you just need UI to
 
 ### Stable command maps (`useRegisterCommands`)
 
-`useRegisterCommands` depends on the **`commands` object reference**. Passing a new inline object every render will unregister and re-register repeatedly. Prefer a module-level `defineCommands({ ... })` map, or memoize:
+`useRegisterCommands` depends on the **`commands` object reference**. Passing a new inline object every render will unregister and re-register repeatedly. Prefer a module-level map with `satisfies CommandDefinitionMap`, or memoize:
 
 ```tsx
 const commands = useMemo(
   () =>
-    defineCommands({
+    ({
       'item.rename': { label: 'Rename', handler: () => rename(id) },
-    }),
+    }) satisfies CommandDefinitionMap,
   [id, rename],
 )
 useRegisterCommands(commands)
@@ -165,19 +144,21 @@ useRegisterCommands(commands)
 
 For list UIs you can register **per-row commands** with ids that include the row key (e.g. `thread.${threadId}.archive`). Mount `useRegisterCommands(createThreadCommands(threadId))` inside each row so shortcuts and menus target the correct entity. See the demo app under `packages/demo` for a full example.
 
-### Command palette: pinning active scopes
+### Command palette: pinning active context
 
-Opening cmdk often moves focus; pointer-based scopes may clear before the palette reads them. Call `registry.pinActiveScopeSnapshot()` **synchronously** when opening the dialog (or rely on the same timing from your state setter), then use `registry.getActiveScopeSnapshotPin()` when filtering `useCommandSearch` results until `registry.clearActiveScopeSnapshotPin()`. The demo calls pin/clear from `setCommandPaletteOpen` in `packages/demo/src/lib/store.ts`. Alternatively, `useCommandPalettePin(open)` from `commandry/react` pins in `useLayoutEffect` when you cannot pin in the event path.
+Opening cmdk often moves focus; pointer-based regions may clear before the palette reads them. Call `registry.pinContext(resolveActiveContext())` **synchronously** when opening the dialog (or rely on the same timing from your state setter), then use `registry.getContextPin()` when filtering `useCommandSearch` results until `registry.clearContextPin()`. The demo calls pin/clear from `setCommandPaletteOpen` in `packages/demo/src/lib/store.ts`.
 
-### Bulk selection and multi-target commands
+### Bulk selection and modes
 
-When several items are selected, you may want shortcuts to prefer **bulk** actions. Mark commands with `bulkAction: true`, set `preferBulkShortcuts` on `CommandryProvider`, and optionally pass `shortcutBindingFilterWhileBulk={keepInBulkSelectionMode}` from `commandry` so non-bulk commands in tight scopes are ignored while bulk mode is active. Palette UIs can filter the same way (see `packages/demo`).
+When several items are selected, you may want shortcuts to prefer **bulk** actions. Mark commands with `bulkAction: true`, set `preferBulkShortcuts` on `CommandryProvider`, and call `registry.setModes(['bulk'])` while multi-select is active. Commands can also declare `exceptModes: ['bulk']` to hide non-bulk actions during selection. Palette UIs can filter the same way (see `packages/demo`).
 
-### `activateOn`: `pointer`, `focus`, `mount`, or `both`
+### `CommandRegion` props: `active` and `hover`
 
-- **`pointer`** (default) — scope follows hover; best for canvas-like surfaces.
-- **`focus`** / **`both`** — better when keyboard navigation should drive scope without pointer hover.
-- **`mount`** — scope is active whenever the subtree is mounted; useful for app shells or layouts where pointer scoping is fragile (mail clients, split panes).
+- **`hover`** (default `true`) — region participates in pointer-based resolution. Set `false` for mount-only shells (app layout, reading pane).
+- **`active`** — region participates in resolution even without pointer hover (selected row, split-pane reading view). Renders `data-commandry-active="true"`.
+- **`anchor`** — entity ids on the region root (`data-commandry-thread-id`, etc.) for disambiguating per-row command ids.
+
+Resolution order for shortcuts: pinned context → `:focus-within` → active regions → pointer (hover-enabled regions) → global commands only.
 
 ---
 
@@ -204,7 +185,7 @@ type Command = {
   // Behavior
   handler: (args: { ctx }) => void | Promise<void>
   shortcut?: Shortcut | Shortcut[]    // single or multiple bindings
-  scope?: ScopeKey                    // omit to inherit from nearest CommandScope
+  scope?: string                       // region tag; omit to inherit from nearest CommandRegion
   when?: () => boolean                // false = hidden entirely
   enabled?: () => boolean             // false = visible but grayed out
 
@@ -274,24 +255,24 @@ cmd.visible   // false if when() returns false
 cmd.disabled  // true if enabled() returns false
 ```
 
-#### Scope inference
+#### Region inference
 
-Commands inherit their scope from the nearest `CommandScope` ancestor where `useRegisterCommands` is called. You don't need to specify `scope` on every command definition — just register them inside the right scope boundary.
+Commands inherit their region from the nearest `CommandRegion` ancestor where `useRegisterCommands` is called. You don't need to specify `scope` on every command definition — just register them inside the right region boundary.
 
 ```tsx
 // These commands don't declare a scope
-const taskItemCommands = defineCommands({
+const taskItemCommands = {
   'task.open':   { label: 'Open Task',   handler: ({ ctx }) => open(ctx.taskId) },
   'task.delete': { label: 'Delete Task', handler: ({ ctx }) => del(ctx.taskId) },
-})
+} satisfies CommandDefinitionMap
 
-// They inherit 'task-item' from the CommandScope they're registered in
+// They inherit 'task-item' from the CommandRegion they're registered in
 function TaskItem({ task }) {
   useRegisterCommands(taskItemCommands)
   return (
-    <CommandScope scope="task-item" ctx={{ taskId: task.id, task }}>
+    <CommandRegion region="task-item" ctx={{ taskId: task.id, task }}>
       <TaskRow />
-    </CommandScope>
+    </CommandRegion>
   )
 }
 ```
@@ -309,7 +290,7 @@ If you set `scope` explicitly on a command, it always wins — the inferred scop
 
 #### Unscoped commands
 
-Commands without a `scope` — and registered outside any `CommandScope` — are **global**. They're always active regardless of pointer position or focus.
+Commands without a `scope` — and registered outside any `CommandRegion` — are **global**. They're always active regardless of pointer position or focus.
 
 ```tsx
 'app.settings': {
@@ -481,29 +462,15 @@ Most commands are simple actions. But some need richer behavior:
 }
 ```
 
-### Scopes
+### Regions
 
-Scopes define where commands are active. They form a tree that mirrors your UI hierarchy. Configure that tree in **`createCommandry({ scopes: { … } })`** — nesting determines the parent-child relationship. You can mirror the same shape in a TypeScript type in your app for documentation or helpers.
+Regions define where commands are active. Nesting `<CommandRegion>` in JSX *is* the hierarchy — parent/child comes from DOM ancestry, not a parallel config object. You can mirror region names in a TypeScript union for documentation or strictness.
 
 ```tsx
-type Scopes = {
-  page: {
-    ctx: { pageId: string }
-    children: {
-      'task-list': {
-        ctx: { listId: string }
-        children: {
-          'task-item': {
-            ctx: { taskId: string; task: Task }
-          }
-        }
-      }
-    }
-  }
-}
+type Region = 'page' | 'task-list' | 'task-item'
 ```
 
-When the user's pointer enters a scope region, that scope and all its ancestors become active:
+When the user's pointer enters a region, that region and all its ancestors become active:
 
 ```
 page (always active)
@@ -511,55 +478,48 @@ page (always active)
        └── task-item[id=3] (pointer is here — innermost)
 ```
 
-In this state, commands scoped to `task-item`, `task-list`, and `page` are all active. Commands scoped to `canvas` are not. Shortcuts resolve to the deepest matching scope — if both `task-item` and `task-list` bind `Backspace`, the `task-item` handler wins.
+In this state, commands scoped to `task-item`, `task-list`, and `page` are all active. Commands scoped to `canvas` are not. Shortcuts resolve to the deepest matching region — if both `task-item` and `task-list` bind `Backspace`, the `task-item` handler wins.
 
 ```tsx
-// CommandScope can track pointer, focus, or both
-<CommandScope
-  scope="task-item"
+<CommandRegion
+  region="task-item"
   ctx={{ taskId: task.id, task }}
-  activateOn="pointer"    // default
-  // activateOn="focus"   // for keyboard-navigable lists
-  // activateOn="both"
+  anchor={{ taskId: task.id }}
+  hover          // default: pointer resolution
+  // active       // always participate (selected row, reading pane)
+  // hover={false} // mount-only shell
 >
   <TaskRow task={task} />
-</CommandScope>
+</CommandRegion>
 ```
 
-`CommandScope` does not yet narrow `scope` prop types from your tree; invalid React nesting is not a compile-time error. In development, when a scope tree is configured, activating **incompatible** scopes at once (neither is an ancestor of the other in the tree) logs a console warning. Unknown scope names also warn. Model valid trees in TS yourself or keep scope strings aligned with `createCommandry({ scopes })`.
+Split-pane apps can use a single `CommandRegion region="task-item" active hover={false}` in the reading pane instead of duplicating list wrappers — see `packages/demo/src/components/message-view.tsx`.
 
 ```tsx
-// ✅ Matches tree: task-list under page
-<CommandScope scope="page" ctx={{ pageId: '1' }}>
-  <CommandScope scope="task-list" ctx={{ listId: 'abc' }}>
+// ✅ Nested regions match DOM hierarchy
+<CommandRegion region="page" ctx={{ pageId: '1' }}>
+  <CommandRegion region="task-list" ctx={{ listId: 'abc' }}>
     ...
-  </CommandScope>
-</CommandScope>
-
-// ⚠️ Dev warning if canvas-node is not under task-list in your configured tree
-<CommandScope scope="task-list" ctx={{ listId: 'abc' }}>
-  <CommandScope scope="canvas-node" ctx={{ nodeId: '1', node }}>
-    ...
-  </CommandScope>
-</CommandScope>
+  </CommandRegion>
+</CommandRegion>
 ```
 
 #### Context merging
 
-Context merges along the active scope stack. A handler in `task-item` receives merged keys from ancestor scopes; TypeScript sees `ctx` as `Record<string, unknown>` unless you narrow.
+Context merges along the active region chain. A handler in `task-item` receives merged keys from ancestor regions; TypeScript sees `ctx` as `Record<string, unknown>` unless you narrow.
 
 ```tsx
-// Scope tree:
+// Region chain:
 // page       → ctx: { pageId: '1' }
 // task-list  → ctx: { listId: 'abc' }
 // task-item  → ctx: { taskId: '3', task: { ... } }
 
 // Handler receives all three merged:
 handler: ({ ctx }) => {
-  ctx.pageId   // '1'       — from page scope
-  ctx.listId   // 'abc'     — from task-list scope
-  ctx.taskId   // '3'       — from task-item scope
-  ctx.task     // { ... }   — from task-item scope
+  ctx.pageId   // '1'       — from page region
+  ctx.listId   // 'abc'     — from task-list region
+  ctx.taskId   // '3'       — from task-item region
+  ctx.task     // { ... }   — from task-item region
 }
 ```
 
@@ -571,13 +531,28 @@ useRegisterCommands(editorCommands, {
 })
 ```
 
-When both `CommandScope` and `useRegisterCommands` provide context, they merge. `CommandScope` context is more specific (it varies per-instance), so it takes precedence over `useRegisterCommands` context for overlapping keys.
+When both `CommandRegion` and `useRegisterCommands` provide context, they merge. `CommandRegion` context is more specific (it varies per-instance), so it takes precedence over `useRegisterCommands` context for overlapping keys.
 
 ```tsx
 // useRegisterCommands provides:  { editor, defaultFont: 'sans' }
-// CommandScope provides:         { blockId: '7' }
+// CommandRegion provides:         { blockId: '7' }
 // Handler receives:              { editor, defaultFont: 'sans', blockId: '7' }
 ```
+
+#### Modes
+
+Flat mode toggles gate commands app-wide without nesting regions:
+
+```tsx
+registry.setModes(['bulk'])       // or useSetModes() from commandry/react
+registry.getModes()               // ReadonlySet<string>
+
+// On commands:
+modes?: string[]        // require ALL listed modes
+exceptModes?: string[]  // hide when ANY listed mode is active
+```
+
+The provider auto-sets `'palette'` when a context pin is active. The demo sets `'bulk'` when threads are multi-selected.
 
 ### Shortcuts
 
@@ -666,7 +641,7 @@ const cmd = useCommand('admin.resetData')
 const role = cmd?.requiredRole as 'admin' | 'editor' | 'viewer' | undefined
 ```
 
-For stricter typing, wrap `defineCommands` in a helper that types your map, or use module augmentation in your app.
+For stricter typing, use `satisfies CommandDefinitionMap` on your command maps, or use module augmentation in your app.
 
 ---
 
@@ -695,12 +670,12 @@ cmd.execute()   // calls handler with current ctx
 
 ### `useCommands(filter?)`
 
-Returns all commands matching a filter, resolved against current scope and context.
+Returns all commands matching a filter, resolved against current region context.
 
 ```tsx
 const all = useCommands()
 const fileCmds = useCommands({ group: 'File' })
-const scopedCmds = useCommands({ scope: 'task-item' })
+const regionCmds = useCommands({ scope: 'task-item' })
 const parentCmds = useCommands({ parent: 'editor.turnInto' })
 ```
 
@@ -712,15 +687,15 @@ Fuzzy search across commands. Matches against `label`, `description`, and `keywo
 
 ```tsx
 const { results, search, setSearch } = useCommandSearch({
-  scopes: activeScopes, // optional — defaults to current scope stack
+  regions: activeContext.regions, // optional — defaults to current context
 })
 ```
 
-For cmdk, if opening the dialog moves focus and drops pointer scopes, pass **`scopes` from a snapshot** taken synchronously on open (see [Command palette: pinning active scopes](#command-palette-pinning-active-scopes)).
+For cmdk, if opening the dialog moves focus and drops pointer regions, pass **`regions` from a pinned snapshot** taken synchronously on open (see [Command palette: pinning active context](#command-palette-pinning-active-context)).
 
 ### `useRegisterCommands(commands, options?)`
 
-Registers commands for the lifetime of the component. Commands inherit the scope from the nearest `CommandScope` ancestor. Unregistration runs automatically on unmount.
+Registers commands for the lifetime of the component. Commands inherit the region from the nearest `CommandRegion` ancestor. Unregistration runs automatically on unmount.
 
 ```tsx
 useRegisterCommands(editorCommands, {
@@ -764,14 +739,16 @@ buffer   // KeyCombo[] — steps entered so far
 pending  // Command[] — commands that could still match
 ```
 
-### `useActiveScopes()`
+### `useActiveContext()`
 
-Returns the current scope stack.
+Returns the current active context (region chain, anchors, merged ctx).
 
 ```tsx
-const scopes = useActiveScopes()
-// ['page', 'task-list', 'task-item']
+const { regions, anchors, ctx } = useActiveContext()
+// regions: ['page', 'task-list', 'task-item']
 ```
+
+`useActiveScopes()` is deprecated and returns `regions` only.
 
 ---
 
@@ -794,7 +771,7 @@ import {
   useCommand,
   useCommandSearch,
   useShortcutDisplay,
-  useActiveScopes,
+  useActiveContext,
 } from 'commandry/react'
 import { Check, ChevronLeft } from 'lucide-react'
 import { groupBy } from 'lodash'
@@ -803,10 +780,10 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false)
   const [pages, setPages] = useState<string[]>([])
   const activePage = pages[pages.length - 1]
-  const activeScopes = useActiveScopes()
+  const { regions } = useActiveContext()
 
   const { results, search, setSearch } = useCommandSearch({
-    scopes: activeScopes,
+    regions,
   })
 
   const groups = useMemo(
@@ -1490,8 +1467,9 @@ Render a small floating panel (active scope chain and registered command count):
 
 ```
 commandry/
-├── core/              # registry, types, scope resolution, sequence engine
-├── react/             # provider, hooks, CommandScope, CommandryDevtools
+├── core/              # registry, types, context filtering, sequence engine
+├── dom/               # resolveActiveContext, region attributes, ctx WeakMap
+├── react/             # provider, hooks, CommandRegion, CommandryDevtools
 ├── adapters/
 │   ├── tinykeys.ts
 │   └── hotkeys-js.ts
@@ -1502,11 +1480,23 @@ commandry/
 
 ---
 
+## This repository (monorepo)
+
+The workspace includes the `commandry` package (`packages/commandry`), a mail demo (`packages/demo`), and docs (`packages/docs`). From the repo root:
+
+- `pnpm build` — build all packages
+- `pnpm test` — Vitest for `commandry` core
+- `pnpm test:e2e` — Playwright against the demo (install browsers once with `pnpm --filter demo test:e2e:install`)
+
+See `[packages/demo/README.md](packages/demo/README.md)` for demo-specific E2E notes (`E2E_PORT`, `E2E_USE_DEV`).
+
+---
+
 ## Releasing
 
 `commandry` currently uses a manual release flow.
 
-1. Validate from the monorepo root:
+1. Validate the workspace from repo root:
 
    ```bash
    pnpm build
@@ -1527,7 +1517,7 @@ commandry/
    pnpm --filter commandry publish --access public
    ```
 
-`prepublishOnly` in `packages/commandry/package.json` enforces build + typecheck + tests before publish.
+`prepublishOnly` in `packages/commandry` enforces build + typecheck + tests before publish.
 
 ---
 

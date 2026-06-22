@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { CommandryContext, ScopeContext } from './context'
+import { CommandryContext, RegionContext } from './context'
 import type { CommandryContextValue } from './context'
 import type {
   CommandDefinitionMap,
@@ -11,6 +11,8 @@ import type {
   ShortcutStep,
 } from '../core/types'
 import { displayShortcut, shortcutToParts } from '../core/shortcuts'
+import { resolveActiveContext } from '../dom/resolve-active-context'
+import type { ActiveContext } from '../dom/resolve-active-context'
 
 export function useCommandry(): CommandryContextValue {
   const ctx = useContext(CommandryContext)
@@ -35,7 +37,7 @@ export function useCommands(filter?: CommandFilter): ResolvedCommand[] {
   )
 }
 
-export function useCommandSearch(options?: { scopes?: string[] }): {
+export function useCommandSearch(options?: { regions?: string[] }): {
   results: ResolvedCommand[]
   search: string
   setSearch: (s: string) => void
@@ -46,7 +48,10 @@ export function useCommandSearch(options?: { scopes?: string[] }): {
   const results = useSyncExternalStore(
     registry.subscribe,
     () => {
-      if (!search) return registry.getCommands(options?.scopes ? { scopes: options.scopes } : undefined)
+      const scopes = options?.regions
+      if (!search) {
+        return registry.getCommands(scopes ? { scopes } : undefined)
+      }
       return registry.search(search)
     },
   )
@@ -59,21 +64,21 @@ export function useRegisterCommands(
   options?: { ctx?: Record<string, unknown> },
 ): void {
   const { registry } = useCommandry()
-  const scopeCtx = useContext(ScopeContext)
+  const regionCtx = useContext(RegionContext)
 
   useEffect(() => {
     const cleanup = registry.register(commands, {
-      scope: scopeCtx.scope,
+      scope: regionCtx.region,
       ctx: options?.ctx,
     })
     return cleanup
-  }, [commands, registry, scopeCtx.scope])
+  }, [commands, registry, regionCtx.region])
 
   useEffect(() => {
     if (options?.ctx) {
       registry.updateRegistrationContext(commands, options.ctx)
     }
-  }, [options?.ctx])
+  }, [options?.ctx, commands, registry])
 }
 
 export function useShortcutDisplay(
@@ -137,35 +142,53 @@ export function useShortcutState(): {
   )
 }
 
-export function useActiveScopes(): string[] {
+export function useActiveContext(): ActiveContext {
   const { registry } = useCommandry()
   return useSyncExternalStore(
     registry.subscribe,
-    () => registry.getActiveScopes(),
+    () => registry.getEffectiveContext(),
   )
 }
 
+/** @deprecated Use {@link useActiveContext} */
+export function useActiveScopes(): string[] {
+  const context = useActiveContext()
+  return context.regions
+}
+
 /**
- * Pin {@link CommandRegistry.getActiveScopeSnapshot} while `open` is true (e.g. command palette).
- * Clears the pin when the surface closes.
- *
- * Prefer calling {@link CommandRegistry.pinActiveScopeSnapshot} **synchronously** in the same
- * turn as opening (e.g. before `setState`) to avoid one frame of palette filtering before
- * the pin exists; this hook uses `useLayoutEffect` as a best-effort fallback.
+ * Pin active context while `open` is true (e.g. command palette).
+ * Prefer calling {@link CommandRegistry.pinContext} synchronously when opening.
  */
 export function useCommandPalettePin(open: boolean): void {
   const { registry } = useCommandry()
 
   useLayoutEffect(() => {
     if (!open) {
-      registry.clearActiveScopeSnapshotPin()
+      registry.clearContextPin()
       return
     }
-    registry.pinActiveScopeSnapshot()
+    const context = resolveActiveContext()
+    registry.pinContext(context)
     return () => {
-      registry.clearActiveScopeSnapshotPin()
+      registry.clearContextPin()
     }
   }, [open, registry])
 }
 
 export const useCommandSurfacePin = useCommandPalettePin
+
+export function useModes(): ReadonlySet<string> {
+  const { registry } = useCommandry()
+  return useSyncExternalStore(
+    registry.subscribe,
+    () => registry.getModes(),
+  )
+}
+
+export function useSetModes(): (modes: Iterable<string>) => void {
+  const { registry } = useCommandry()
+  return useCallback((modes: Iterable<string>) => {
+    registry.setModes(modes)
+  }, [registry])
+}

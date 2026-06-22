@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import type { ShortcutField } from 'commandry'
 import {
-  CommandScope,
+  CommandRegion,
   useCommand,
   useRegisterCommands,
   useShortcutDisplay,
@@ -301,8 +301,8 @@ function MessageBlock({
   onAccordionOpenChange: (open: boolean) => void
 }) {
   return (
-    <CommandScope
-      scope="message"
+    <CommandRegion
+      region="message"
       ctx={{
         messageId: message.id,
         threadId,
@@ -320,7 +320,7 @@ function MessageBlock({
         accordionOpen={accordionOpen}
         onAccordionOpenChange={onAccordionOpenChange}
       />
-    </CommandScope>
+    </CommandRegion>
   )
 }
 
@@ -465,34 +465,28 @@ function MessageViewInner({ threadId }: { threadId: string }) {
 
 export function MessageView() {
   const selectedThreadId = useMailStore(s => s.selectedThreadId)
-  const selectedMailboxId = useMailStore(s => s.selectedMailboxId)
   useMailStore(s => s.epoch)
   const thread = selectedThreadId ? getThreadById(selectedThreadId) : undefined
 
   return (
     <div className="flex h-[100dvh] flex-col">
-      <CommandScope
-        scope="thread-list"
-        ctx={{ mailboxId: selectedMailboxId }}
-        activateOn="mount"
-      >
-        {thread && selectedThreadId ? (
-          <CommandScope
-            scope="thread-item"
-            ctx={{
-              threadId: thread.id,
-              threadSubject: thread.subject,
-              threadParticipant: thread.participant,
-            }}
-            activateOn="mount"
-            anchor={{ threadId: thread.id }}
-          >
-            <MessageViewInner key={selectedThreadId} threadId={selectedThreadId} />
-          </CommandScope>
-        ) : (
-          <MessageViewPlaceholder />
-        )}
-      </CommandScope>
+      {thread && selectedThreadId ? (
+        <CommandRegion
+          region="thread-item"
+          ctx={{
+            threadId: thread.id,
+            threadSubject: thread.subject,
+            threadParticipant: thread.participant,
+          }}
+          anchor={{ threadId: thread.id }}
+          active
+          hover={false}
+        >
+          <MessageViewInner key={selectedThreadId} threadId={selectedThreadId} />
+        </CommandRegion>
+      ) : (
+        <MessageViewPlaceholder />
+      )}
     </div>
   )
 }

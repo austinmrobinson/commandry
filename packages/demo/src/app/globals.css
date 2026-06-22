@@ -178,13 +178,13 @@
 
 @layer components {
   /* Mirrors sidebar SidebarMenuButton data-active tokens (sidebarMenuButtonVariants). */
-  [data-commandry-scope][data-context-menu-open] {
+  [data-commandry-region][data-context-menu-open] {
     @apply rounded-md ring-2 ring-inset ring-sidebar-border;
   }
-  [data-commandry-scope][data-context-menu-open] > button {
+  [data-commandry-region][data-context-menu-open] > button {
     @apply bg-primary/10 font-medium text-sidebar-accent-foreground;
   }
-  [data-commandry-scope][data-context-menu-open] > article {
+  [data-commandry-region][data-context-menu-open] > article {
     @apply bg-primary/10 text-sidebar-accent-foreground;
   }
 }

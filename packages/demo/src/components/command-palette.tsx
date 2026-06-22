@@ -14,7 +14,7 @@ import {
   prepareCommandPaletteRows,
   type ResolvedCommand,
 } from 'commandry'
-import { useCommandry, useCommandSearch, useShortcutDisplay } from 'commandry/react'
+import { useCommandry, useCommandSearch, useModes, useShortcutDisplay } from 'commandry/react'
 import { setCommandPaletteOpen, useMailStore } from '@/lib/store'
 import {
   Command,
@@ -118,6 +118,7 @@ function RadioPalettePage({
 
 export function CommandPalette() {
   const { registry } = useCommandry()
+  const modes = useModes()
   const open = useMailStore(s => s.commandPaletteOpen)
   const selectedThreadIds = useMailStore(s => s.selectedThreadIds)
   const selectedThreadId = useMailStore(s => s.selectedThreadId)
@@ -125,32 +126,30 @@ export function CommandPalette() {
   const { results, search, setSearch } = useCommandSearch()
   const [pages, setPages] = useState<string[]>([])
 
-  const snapshotPin = useSyncExternalStore(
+  const contextPin = useSyncExternalStore(
     registry.subscribe,
-    () => registry.getActiveScopeSnapshotPin(),
+    () => registry.getContextPin(),
     () => null,
   )
 
-  const depthFn = useMemo(
-    () => (scope: string | null) => registry.getScopeDepth(scope),
-    [registry],
-  )
-
   const filteredResults = useMemo(() => {
-    const activation = snapshotPin ?? registry.getActiveScopeSnapshot()
-    return filterCommandsForSurface(results, activation, {
-      selectedThreadIds,
-      selectedThreadId,
-    })
-  }, [snapshotPin, results, registry, selectedThreadIds, selectedThreadId])
+    const context = contextPin ?? registry.getEffectiveContext()
+    return filterCommandsForSurface(
+      results,
+      context,
+      { selectedThreadIds, selectedThreadId },
+      modes,
+    )
+  }, [contextPin, results, registry, selectedThreadIds, selectedThreadId, modes])
 
   const rows = useMemo(
     () =>
       prepareCommandPaletteRows(filteredResults, {
-        getScopeDepth: depthFn,
+        context: contextPin ?? registry.getEffectiveContext(),
         multiSelectMode: multiThreadSelection,
+        modes,
       }),
-    [filteredResults, depthFn, multiThreadSelection],
+    [filteredResults, contextPin, registry, multiThreadSelection, modes],
   )
   const groups = useMemo(() => {
     const m = new Map<string, CommandPaletteRow[]>()

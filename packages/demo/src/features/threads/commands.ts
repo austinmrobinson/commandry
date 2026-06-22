@@ -10,7 +10,6 @@ import {
   Mail,
 } from 'lucide-react'
 import type { CommandDefinitionMap } from 'commandry'
-import { defineCommands } from '@/lib/commandry'
 import { getThreadById, LABELS } from '@/lib/mock-data'
 import { showToast, showSuccessToast } from '@/lib/show-toast'
 import {
@@ -52,7 +51,7 @@ function listTargets(): string[] {
 export function createThreadCommands(threadId: string): CommandDefinitionMap {
   const base = `thread.${threadId}`
 
-  return defineCommands({
+  return {
     [`${base}.archive`]: {
       label: 'Archive',
       icon: Archive,
@@ -196,7 +195,7 @@ export function createThreadCommands(threadId: string): CommandDefinitionMap {
       shortcut: [['f']],
       handler: () => { showToast('Forward opened (demo)', Forward) },
     },
-  })
+  } satisfies CommandDefinitionMap
 }
 
 /**
@@ -205,7 +204,7 @@ export function createThreadCommands(threadId: string): CommandDefinitionMap {
  * prefers these when multiple threads are selected.
  */
 export function createThreadListCommands(): CommandDefinitionMap {
-  return defineCommands({
+  return {
     'threadList.archive': {
       label: 'Archive',
       icon: Archive,
@@ -345,5 +344,5 @@ export function createThreadListCommands(): CommandDefinitionMap {
         showToast(label ? `${target} labeled ${label.name}` : `Label removed from ${target.toLowerCase()}`, Tag)
       },
     },
-  })
+  } satisfies CommandDefinitionMap
 }

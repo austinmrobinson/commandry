@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { prepareCommandPaletteRows } from './palette-rows'
+import type { ActiveContext } from '../dom/resolve-active-context'
 import type { ResolvedCommand } from './types'
 
 function action(
@@ -51,31 +52,38 @@ function radio(id: string, scope: string | null): ResolvedCommand {
   } as ResolvedCommand
 }
 
-describe('prepareCommandPaletteRows', () => {
-  const depth = (s: string | null) => (s === 'deep' ? 2 : s === 'shallow' ? 1 : 0)
+const context = (regions: string[]): ActiveContext => ({
+  regions,
+  anchors: {},
+  ctx: {},
+  element: null,
+})
 
-  it('sorts deeper scope before shallower', () => {
+describe('prepareCommandPaletteRows', () => {
+  it('sorts deeper region before shallower', () => {
     const rows = prepareCommandPaletteRows(
       [action('a', 'shallow'), action('b', 'deep')],
-      { getScopeDepth: depth },
+      { context: context(['app', 'shallow', 'deep']) },
     )
     expect(rows.map(r => r.id)).toEqual(['b', 'a'])
   })
 
   it('emits one row per radio with radioCommandId', () => {
-    const rows = prepareCommandPaletteRows([radio('r1', 'app')], { getScopeDepth: depth })
+    const rows = prepareCommandPaletteRows([radio('r1', 'app')], {
+      context: context(['app']),
+    })
     expect(rows).toHaveLength(1)
     expect(rows[0]!.radioCommandId).toBe('r1')
     expect(rows[0]!.run).toBeUndefined()
   })
 
-  it('in multiSelectMode drops non-bulk thread-item commands (keepInBulkSelectionMode)', () => {
+  it('in multiSelectMode drops non-bulk thread-item commands', () => {
     const rows = prepareCommandPaletteRows(
       [
         action('single', 'thread-item', { bulkAction: false }),
         action('bulk', 'thread-item', { bulkAction: true }),
       ],
-      { getScopeDepth: () => 1, multiSelectMode: true },
+      { context: context(['thread-item']), multiSelectMode: true },
     )
     expect(rows.map(r => r.id)).toEqual(['bulk'])
   })
@@ -87,7 +95,7 @@ describe('prepareCommandPaletteRows', () => {
       execute: vi.fn().mockRejectedValue(error),
     })
 
-    const rows = prepareCommandPaletteRows([cmd], { getScopeDepth: depth })
+    const rows = prepareCommandPaletteRows([cmd], { context: context([]) })
     rows[0]?.run?.()
     await Promise.resolve()
 

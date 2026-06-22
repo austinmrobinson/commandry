@@ -23,6 +23,23 @@ function ThemeSync() {
   return null
 }
 
+function BulkModeSync() {
+  useEffect(() => {
+    function syncBulkMode() {
+      const modes = new Set(registry.getModes())
+      if (getMailState().selectedThreadIds.length > 0) {
+        modes.add('bulk')
+      } else {
+        modes.delete('bulk')
+      }
+      registry.setModes(modes)
+    }
+    syncBulkMode()
+    return subscribeMailStore(syncBulkMode)
+  }, [])
+  return null
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <CommandryProvider
@@ -31,6 +48,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       shortcutBindingFilterWhileBulk={keepInBulkSelectionMode}
     >
       <ThemeSync />
+      <BulkModeSync />
       <GlobalCommands />
       {children}
     </CommandryProvider>

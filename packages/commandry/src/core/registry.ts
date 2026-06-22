@@ -1,7 +1,6 @@
 import type { ComponentType } from 'react'
 import type {
   ActionCommandDefinition,
-  ActiveScopeSnapshot,
   BaseCommandDefinition,
   CommandDefinition,
   CommandDefinitionMap,
@@ -13,14 +12,15 @@ import type {
   RadioCommandDefinition,
   RegisterOptions,
   ResolvedCommand,
-  RuntimeScopeConfig,
   Shortcut,
   ShortcutBinding,
   ShortcutField,
-  ScopeTree,
   ToggleCommandDefinition,
 } from './types'
-import { buildScopeTree, isAncestorOf, mergeContext } from './scope'
+import {
+  EMPTY_ACTIVE_CONTEXT,
+  type ActiveContext,
+} from '../dom/resolve-active-context'
 import { normalizeShortcut, shortcutToString } from './shortcuts'
 import { searchScore } from './utils'
 import { detectPlatform } from './shortcuts'
@@ -41,34 +41,23 @@ const KNOWN_KEYS = new Set([
   'label', 'icon', 'description', 'group', 'keywords', 'priority',
   'danger', 'variant', 'handler', 'shortcut', 'scope', 'when', 'enabled',
   'shadow', 'external', 'kind', 'checked', 'options', 'value', 'children',
-  'bulkAction',
+  'bulkAction', 'modes', 'exceptModes',
 ])
 
 export class CommandRegistry {
   private commands = new Map<string, InternalCommand>()
   private listeners = new Set<() => void>()
-  private scopeStack: string[] = []
-  private scopeContexts = new Map<string, Record<string, unknown>>()
-  /** LIFO holders per scope name so multiple CommandScope nodes can share one stack entry */
-  private scopeHolderStacks = new Map<string, { id: number; ctx: Record<string, unknown> }[]>()
-  private holderIdSeq = 0
   private pendingCommands = new Set<string>()
   private registrationContexts = new Map<string, Record<string, unknown>>()
   private version = 0
   private cache = new Map<string, { version: number; result: unknown }>()
-  /** Frozen snapshot for command surfaces (palette, etc.) while focus/pointer scopes change */
-  private activeScopeSnapshotPin: ActiveScopeSnapshot | null = null
+  private contextPin: ActiveContext | null = null
+  private liveContext: ActiveContext = EMPTY_ACTIVE_CONTEXT
+  private modes = new Set<string>()
 
-  readonly scopeTree: ScopeTree
   readonly platform: Platform
 
-  constructor(options?: {
-    scopes?: Record<string, RuntimeScopeConfig>
-    platform?: Platform
-  }) {
-    this.scopeTree = options?.scopes
-      ? buildScopeTree(options.scopes)
-      : { root: null, nodes: new Map() }
+  constructor(options?: { platform?: Platform }) {
     this.platform = options?.platform ?? detectPlatform()
   }
 
@@ -157,6 +146,7 @@ export class CommandRegistry {
     for (const id of Object.keys(commands)) {
       this.registrationContexts.set(id, ctx)
     }
+    this.notify()
   }
 
   // -------------------------------------------------------------------------
@@ -254,166 +244,62 @@ export class CommandRegistry {
   }
 
   // -------------------------------------------------------------------------
-  // Scope management
+  // Active context + modes
   // -------------------------------------------------------------------------
 
-  /**
-   * Activates a scope holder. Returns an opaque id so callers can remove or update **this**
-   * activation without relying on LIFO `popScope` (needed when multiple instances share a scope name).
-   */
-  pushScope(scope: string, ctx: Record<string, unknown>): number {
-    const id = ++this.holderIdSeq
-    const holders = this.scopeHolderStacks.get(scope) ?? []
-    const wasEmpty = holders.length === 0
-    holders.push({ id, ctx })
-    this.scopeHolderStacks.set(scope, holders)
-
-    if (wasEmpty) {
-      const depth = this.getScopeDepth(scope)
-      let insertIdx = this.scopeStack.length
-      for (let i = 0; i < this.scopeStack.length; i++) {
-        if (this.getScopeDepth(this.scopeStack[i]) > depth) {
-          insertIdx = i
-          break
-        }
-      }
-      this.scopeStack.splice(insertIdx, 0, scope)
-    }
-
-    this.scopeContexts.set(scope, ctx)
-    this.notify()
-    this.warnIfScopeTreeViolated(scope)
-    return id
-  }
-
-  /**
-   * Dev-only: unknown scope names and pairwise incomparable scopes on the active stack
-   * (neither is an ancestor of the other in the configured tree).
-   */
-  private warnIfScopeTreeViolated(pushedScope: string): void {
-    if (process.env.NODE_ENV === 'production') return
-    const tree = this.scopeTree
-    if (tree.nodes.size === 0) return
-
-    if (!tree.nodes.has(pushedScope)) {
-      console.warn(
-        `⚠️ [commandry] Unknown scope '${pushedScope}' — not defined in createCommandry({ scopes }) tree`,
-      )
-    }
-
-    const scopes = [...this.scopeStack]
-    for (let i = 0; i < scopes.length; i++) {
-      for (let j = i + 1; j < scopes.length; j++) {
-        const a = scopes[i]
-        const b = scopes[j]
-        if (!tree.nodes.has(a) || !tree.nodes.has(b)) continue
-        const aAncB = isAncestorOf(tree, a, b)
-        const bAncA = isAncestorOf(tree, b, a)
-        if (!aAncB && !bAncA) {
-          console.warn(
-            `⚠️ [commandry] Incompatible active scopes (not ancestor/descendant in scope tree): '${a}' and '${b}'`,
-          )
-        }
-      }
-    }
-  }
-
-  /** Removes the most recently pushed holder for `scope` (legacy / symmetric pointer leave). */
-  popScope(scope: string): void {
-    const holders = this.scopeHolderStacks.get(scope)
-    if (!holders || holders.length === 0) return
-    const top = holders[holders.length - 1]
-    this.removeScopeHolder(top.id)
-  }
-
-  /** Remove a specific holder created by `pushScope` (safe with overlapping same-named scopes). */
-  removeScopeHolder(holderId: number): void {
-    for (const [scope, holders] of this.scopeHolderStacks) {
-      const idx = holders.findIndex(h => h.id === holderId)
-      if (idx === -1) continue
-
-      holders.splice(idx, 1)
-      if (holders.length === 0) {
-        this.scopeHolderStacks.delete(scope)
-        const index = this.scopeStack.lastIndexOf(scope)
-        if (index !== -1) this.scopeStack.splice(index, 1)
-        this.scopeContexts.delete(scope)
-      } else {
-        this.scopeContexts.set(scope, holders[holders.length - 1].ctx)
-      }
-      this.notify()
-      return
-    }
-  }
-
-  /** Update context for an existing holder (e.g. `activateOn="mount"` when props change). */
-  updateScopeHolderContext(holderId: number, ctx: Record<string, unknown>): void {
-    for (const [scope, holders] of this.scopeHolderStacks) {
-      const h = holders.find(x => x.id === holderId)
-      if (!h) continue
-      h.ctx = ctx
-      const top = holders[holders.length - 1]
-      if (top.id === holderId) {
-        this.scopeContexts.set(scope, ctx)
-        this.notify()
-      }
-      return
-    }
-  }
-
-  getActiveScopes(): string[] {
-    const cacheKey = 'activeScopes'
-    const cached = this.cache.get(cacheKey)
-    if (cached && cached.version === this.version) return cached.result as string[]
-
-    const result = [...this.scopeStack]
-    this.cache.set(cacheKey, { version: this.version, result })
-    return result
-  }
-
-  getActiveScopeContexts(): Map<string, Record<string, unknown>> {
-    return new Map(this.scopeContexts)
-  }
-
-  /** Clone active stack + contexts for palette / menu pinning (see `ActiveScopeSnapshot`). */
-  getActiveScopeSnapshot(): ActiveScopeSnapshot {
-    const scopes = this.getActiveScopes()
-    const contexts = this.getActiveScopeContexts()
-    return {
-      scopes: scopes.slice(),
-      contexts: new Map(contexts),
-    }
-  }
-
-  /**
-   * Capture the current active scope snapshot (call synchronously when opening a command
-   * surface). Subsequent `getActiveScopeSnapshot()` for shortcuts still reflects live state;
-   * use {@link getActiveScopeSnapshotPin} for palette filtering until {@link clearActiveScopeSnapshotPin}.
-   */
-  pinActiveScopeSnapshot(): void {
-    this.activeScopeSnapshotPin = this.getActiveScopeSnapshot()
+  setLiveContext(context: ActiveContext): void {
+    this.liveContext = context
     this.notify()
   }
 
-  clearActiveScopeSnapshotPin(): void {
-    if (this.activeScopeSnapshotPin === null) return
-    this.activeScopeSnapshotPin = null
+  getLiveContext(): ActiveContext {
+    return this.liveContext
+  }
+
+  getEffectiveContext(): ActiveContext {
+    return this.contextPin ?? this.liveContext
+  }
+
+  pinContext(context: ActiveContext): void {
+    this.contextPin = context
     this.notify()
   }
 
-  getActiveScopeSnapshotPin(): ActiveScopeSnapshot | null {
-    return this.activeScopeSnapshotPin
+  clearContextPin(): void {
+    if (this.contextPin === null) return
+    this.contextPin = null
+    this.notify()
+  }
+
+  getContextPin(): ActiveContext | null {
+    return this.contextPin
+  }
+
+  setModes(modes: Iterable<string>): void {
+    this.modes = new Set(modes)
+    this.notify()
+  }
+
+  getModes(): ReadonlySet<string> {
+    return this.modes
+  }
+
+  getRegionDepth(region: string | null, context?: ActiveContext): number {
+    if (!region) return -1
+    const ctx = context ?? this.getEffectiveContext()
+    const idx = ctx.regions.indexOf(region)
+    return idx === -1 ? -1 : idx
   }
 
   // -------------------------------------------------------------------------
   // Execution
   // -------------------------------------------------------------------------
 
-  async execute(id: string, args?: ExecuteArgs): Promise<void> {
+  async execute(id: string, args?: ExecuteArgs, context?: ActiveContext): Promise<void> {
     const internal = this.commands.get(id)
     if (!internal) return
 
-    const resolved = this.resolve(internal)
+    const resolved = this.resolve(internal, context)
     if (!resolved.visible || resolved.disabled || resolved.pending) return
 
     if (isParentCommand(internal.definition)) return
@@ -422,15 +308,15 @@ export class CommandRegistry {
     this.notify()
 
     try {
-      const ctx = this.getMergedContext(internal)
+      const ctx = this.getMergedContext(internal, context)
 
       if (isRadioCommand(internal.definition)) {
         await internal.definition.handler({
           ctx,
           value: args?.value ?? '',
           skipConfirm: args?.skipConfirm,
-        } as { ctx: Record<string, unknown>; value: string } & ExecuteArgs)
-      } else if (!isParentCommand(internal.definition)) {
+        })
+      } else {
         const handlerDef = internal.definition as ActionCommandDefinition | ToggleCommandDefinition
         await handlerDef.handler({ ctx, ...args })
       }
@@ -457,15 +343,11 @@ export class CommandRegistry {
       const shortcuts = this.normalizeShortcutField(shortcutField)
 
       for (const shortcut of shortcuts) {
-        const scopeIdx = internal.scope
-          ? this.scopeStack.indexOf(internal.scope)
-          : null
-
         bindings.push({
           commandId: internal.id,
           shortcut: normalizeShortcut(shortcut, this.platform),
           scope: internal.scope,
-          scopeDepth: scopeIdx !== null && scopeIdx !== -1 ? scopeIdx : null,
+          scopeDepth: null,
           shadow: ('shadow' in def && def.shadow === true),
           when: 'when' in def ? def.when : undefined,
           enabled: 'enabled' in def ? def.enabled : undefined,
@@ -483,7 +365,6 @@ export class CommandRegistry {
   checkCollisions(): void {
     const bindings = this.getShortcutBindings()
 
-    // Group by scope for same-scope collision detection
     const byScope = new Map<string | null, ShortcutBinding[]>()
     for (const b of bindings) {
       const key = b.scope ?? '__global__'
@@ -492,7 +373,6 @@ export class CommandRegistry {
       byScope.set(key, group)
     }
 
-    // Same-scope collisions
     for (const [scope, scopeBindings] of byScope) {
       for (let i = 0; i < scopeBindings.length; i++) {
         for (let j = i + 1; j < scopeBindings.length; j++) {
@@ -504,7 +384,7 @@ export class CommandRegistry {
           if (aStr === bStr) {
             const scopeLabel = scope === '__global__' ? 'global' : scope
             console.warn(
-              `⚠️ [commandry] Shortcut collision: '${aStr}' in scope '${scopeLabel}'\n` +
+              `⚠️ [commandry] Shortcut collision: '${aStr}' in region '${scopeLabel}'\n` +
               `  → '${a.commandId}'\n` +
               `  → '${b.commandId}'\n` +
               `  Last registered wins.`,
@@ -514,31 +394,6 @@ export class CommandRegistry {
       }
     }
 
-    // Parent-scope shadowing
-    for (const binding of bindings) {
-      if (binding.scope === null || binding.shadow) continue
-
-      for (const other of bindings) {
-        if (other === binding) continue
-        if (other.scope === null) continue
-        if (other.scope === binding.scope) continue
-
-        const bStr = shortcutToString(binding.shortcut, this.platform)
-        const oStr = shortcutToString(other.shortcut, this.platform)
-        if (bStr !== oStr) continue
-
-        if (isAncestorOf(this.scopeTree, other.scope, binding.scope)) {
-          console.warn(
-            `⚠️ [commandry] Shortcut shadowing: '${bStr}'\n` +
-            `  → '${binding.commandId}' (scope: ${binding.scope})\n` +
-            `  → '${other.commandId}' (scope: ${other.scope}, ancestor)\n` +
-            `  Inner scope takes priority. Add { shadow: true } if intentional.`,
-          )
-        }
-      }
-    }
-
-    // Prefix collisions
     for (const [, scopeBindings] of byScope) {
       const singles = scopeBindings.filter(b => b.shortcut.length === 1)
       const sequences = scopeBindings.filter(b => b.shortcut.length > 1)
@@ -549,7 +404,7 @@ export class CommandRegistry {
           const firstStep = shortcutToString([seq.shortcut[0]], this.platform)
           if (sStr === firstStep) {
             console.warn(
-              `⚠️ [commandry] Prefix collision in scope '${single.scope ?? 'global'}':\n` +
+              `⚠️ [commandry] Prefix collision in region '${single.scope ?? 'global'}':\n` +
               `  '${sStr}' is both a complete shortcut (${single.commandId}) and\n` +
               `  the start of a sequence (${seq.commandId}: ${shortcutToString(seq.shortcut, this.platform)})\n` +
               `  ${single.commandId} will never fire.`,
@@ -558,17 +413,6 @@ export class CommandRegistry {
         }
       }
     }
-  }
-
-  getScopeDepth(scope: string | null): number {
-    if (!scope) return -1
-    let depth = 0
-    let node = this.scopeTree.nodes.get(scope) ?? null
-    while (node?.parent) {
-      depth++
-      node = node.parent
-    }
-    return depth
   }
 
   // -------------------------------------------------------------------------
@@ -592,9 +436,9 @@ export class CommandRegistry {
   // Internal resolution
   // -------------------------------------------------------------------------
 
-  private resolve(internal: InternalCommand): ResolvedCommand {
+  private resolve(internal: InternalCommand, context?: ActiveContext): ResolvedCommand {
     const def = internal.definition
-    const ctx = this.getMergedContext(internal)
+    const ctx = this.getMergedContext(internal, context)
     const ctxArg = { ctx }
 
     const label = typeof def.label === 'function' ? def.label(ctxArg) : def.label
@@ -604,11 +448,12 @@ export class CommandRegistry {
       icon = def.icon
     } else if ('icon' in def && def.icon != null) {
       const iconField = def.icon
-      if (typeof iconField === 'function') {
-        const result = (iconField as (args: { ctx: Record<string, unknown> }) => ComponentType)(ctxArg)
-        icon = result
-      } else {
+      if (typeof iconField === 'function' && iconField.length > 0) {
+        icon = (iconField as (args: { ctx: Record<string, unknown> }) => ComponentType)(ctxArg)
+      } else if (typeof iconField === 'function') {
         icon = iconField as ComponentType
+      } else {
+        icon = iconField
       }
     }
 
@@ -629,12 +474,7 @@ export class CommandRegistry {
       ? Object.keys(def.children).map(k => `${internal.id}.${k}`)
       : []
 
-    const customProps: Record<string, unknown> = {}
-    for (const [key, value] of Object.entries(def)) {
-      if (!KNOWN_KEYS.has(key)) {
-        customProps[key] = value
-      }
-    }
+    const baseDef = isParentCommand(def) ? def : def as BaseCommandDefinition
 
     const resolved: ResolvedCommand = {
       id: internal.id,
@@ -643,11 +483,11 @@ export class CommandRegistry {
       description: 'description' in def ? def.description : undefined,
       group: this.resolveGroup(def, ctxArg),
       scope: internal.scope,
-      keywords: ('keywords' in def && def.keywords) ? def.keywords as string[] : [],
-      priority: ('priority' in def && def.priority != null) ? def.priority as number : 0,
+      keywords: ('keywords' in def && def.keywords) ? def.keywords : [],
+      priority: ('priority' in def && def.priority != null) ? def.priority : 0,
       danger: ('danger' in def && def.danger === true),
-      variant: ('variant' in def ? def.variant : undefined) as string | undefined,
-      shortcut: ('shortcut' in def ? def.shortcut : undefined) as ShortcutField | undefined,
+      variant: ('variant' in def ? def.variant : undefined),
+      shortcut: ('shortcut' in def ? def.shortcut : undefined),
       visible: when,
       disabled: !enabled,
       pending: this.pendingCommands.has(internal.id),
@@ -657,19 +497,22 @@ export class CommandRegistry {
       checked: isToggleCommand(def) ? () => def.checked(ctxArg) : undefined,
       value: isRadioCommand(def) ? () => def.value(ctxArg) : undefined,
       options: isRadioCommand(def) ? def.options : undefined,
-      execute: (args?: ExecuteArgs) => this.execute(internal.id, args),
-      bulkAction:
-        'bulkAction' in def ? (def as BaseCommandDefinition).bulkAction : undefined,
-      ...customProps,
+      execute: (args?: ExecuteArgs) => this.execute(internal.id, args, context),
+      bulkAction: 'bulkAction' in baseDef ? baseDef.bulkAction : undefined,
+      modes: 'modes' in baseDef ? baseDef.modes : undefined,
+      exceptModes: 'exceptModes' in baseDef ? baseDef.exceptModes : undefined,
     }
 
     return resolved
   }
 
-  private getMergedContext(internal: InternalCommand): Record<string, unknown> {
+  private getMergedContext(
+    internal: InternalCommand,
+    context?: ActiveContext,
+  ): Record<string, unknown> {
     const registrationCtx = this.registrationContexts.get(internal.id) ?? {}
-    const scopeCtx = mergeContext(this.scopeStack, this.scopeContexts)
-    return { ...registrationCtx, ...scopeCtx }
+    const regionCtx = (context ?? this.getEffectiveContext()).ctx
+    return { ...regionCtx, ...registrationCtx }
   }
 
   private resolveGroup(

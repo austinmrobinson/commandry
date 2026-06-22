@@ -9,13 +9,16 @@ export interface CommandryContextValue {
   sequenceEngine: SequenceEngine
 }
 
-export interface ScopeContextValue {
-  scope: string | null
-  scopeStack: string[]
+export interface RegionContextValue {
+  region: string | null
+  regionStack: string[]
 }
 
 export const CommandryContext = createContext<CommandryContextValue | null>(null)
-export const ScopeContext = createContext<ScopeContextValue>({
-  scope: null,
-  scopeStack: [],
+export const RegionContext = createContext<RegionContextValue>({
+  region: null,
+  regionStack: [],
 })
+
+/** @deprecated Use {@link RegionContext} */
+export const ScopeContext = RegionContext
