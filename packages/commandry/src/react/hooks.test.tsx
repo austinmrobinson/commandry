@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
 import { CommandryProvider } from './provider'
-import { CommandScope } from './scope'
+import { CommandRegion } from './region'
 import { CommandRegistry } from '../core/registry'
 import {
   useCommand,
   useCommands,
   useRegisterCommands,
   useShortcutDisplay,
-  useActiveScopes,
+  useActiveContext,
 } from './hooks'
 import type { CommandDefinitionMap } from '../core/types'
 
@@ -106,7 +106,7 @@ describe('useRegisterCommands', () => {
     expect(registry.getCommand('mounted')).toBeNull()
   })
 
-  it('inherits scope from nearest CommandScope', () => {
+  it('inherits region from nearest CommandRegion', () => {
     const registry = createTestRegistry()
     const commands: CommandDefinitionMap = {
       'scoped': { label: 'Scoped', handler: vi.fn() },
@@ -120,13 +120,14 @@ describe('useRegisterCommands', () => {
 
     render(
       <Wrapper registry={registry}>
-        <CommandScope scope="test-scope" ctx={{ x: 1 }}>
+        <CommandRegion region="test-region" ctx={{ x: 1 }}>
           <Inner />
-        </CommandScope>
+        </CommandRegion>
       </Wrapper>,
     )
 
     expect(screen.getByTestId('label').textContent).toBe('Scoped')
+    expect(registry.getCommand('scoped')?.scope).toBe('test-region')
   })
 })
 
@@ -157,22 +158,27 @@ describe('useShortcutDisplay', () => {
   })
 })
 
-describe('useActiveScopes', () => {
-  it('reflects scope stack', () => {
+describe('useActiveContext', () => {
+  it('reflects effective context from registry', () => {
     const registry = createTestRegistry()
 
     function TestComp() {
-      const scopes = useActiveScopes()
-      return <div data-testid="scopes">{scopes.join(',') || 'none'}</div>
+      const ctx = useActiveContext()
+      return <div data-testid="regions">{ctx.regions.join(',') || 'none'}</div>
     }
 
     render(<Wrapper registry={registry}><TestComp /></Wrapper>)
-    expect(screen.getByTestId('scopes').textContent).toBe('none')
+    expect(screen.getByTestId('regions').textContent).toBe('none')
 
     act(() => {
-      registry.pushScope('page', { pageId: '1' })
+      registry.setLiveContext({
+        regions: ['page'],
+        anchors: {},
+        ctx: {},
+        element: null,
+      })
     })
 
-    expect(screen.getByTestId('scopes').textContent).toBe('page')
+    expect(screen.getByTestId('regions').textContent).toBe('page')
   })
 })

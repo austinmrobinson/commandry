@@ -1,6 +1,5 @@
 import { Copy, Forward, Reply, ReplyAll, Sparkles } from 'lucide-react'
 import type { CommandDefinitionMap } from 'commandry'
-import { defineCommands } from '@/lib/commandry'
 import { messagePaletteGroupTitle } from '@/lib/palette-labels'
 import { getThreadById } from '@/lib/mock-data'
 import { showToast, showSuccessToast } from '@/lib/show-toast'
@@ -12,7 +11,7 @@ export function createMessageCommands(
 ): CommandDefinitionMap {
   const base = `message.${messageId}`
 
-  return defineCommands({
+  return {
     [`${base}.reply`]: {
       label: 'Reply',
       icon: Reply,
@@ -62,5 +61,5 @@ export function createMessageCommands(
         showToast(wasImportant ? 'Removed from important' : 'Marked as important', Sparkles)
       },
     },
-  })
+  } satisfies CommandDefinitionMap
 }

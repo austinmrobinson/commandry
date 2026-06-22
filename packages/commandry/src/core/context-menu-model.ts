@@ -1,95 +1,97 @@
-import { keepInBulkSelectionMode } from './bulk-selection'
+import { filterCommandsForContext } from './filter-commands-for-context'
+import type { ActiveContext } from '../dom/resolve-active-context'
+import {
+  buildContextFromElement,
+  getParentRegionElement,
+} from '../dom/resolve-active-context'
+import { DATA_COMMANDRY_REGION } from '../dom/region-attributes'
 import type { ResolvedCommand } from './types'
-import type { ScopeTree } from './types'
 
 export interface ContextMenuModel {
-  /** Scope inferred from the target (deepest `data-commandry-scope` match). */
-  menuScope: string | null
+  menuRegion: string | null
   groups: Map<string, ResolvedCommand[]>
   empty: boolean
 }
 
 export interface BuildContextMenuModelOptions {
   commands: ResolvedCommand[]
-  menuScope: string | null
-  scopeTree: ScopeTree
-  /** When true, drop non-bulk commands in the scoped list layer (default `thread-item`). */
+  context: ActiveContext
+  modes?: ReadonlySet<string>
   bulkSelectionActive?: boolean
-  bulkScopedLayer?: string
-  /**
-   * When not bulk-selecting, restrict `thread-item` / `message` commands to the row or message
-   * under the context-menu target (avoids dedupe keeping the wrong `thread.*.archive` instance).
-   */
-  menuAnchorThreadId?: string | null
-  menuAnchorMessageId?: string | null
+  bulkRegion?: string
 }
 
-function threadIdFromThreadCommandId(id: string): string | null {
-  const m = /^thread\.([^.]+)\./.exec(id)
-  return m?.[1] ?? null
-}
-
-function messageIdFromMessageCommandId(id: string): string | null {
-  const m = /^message\.([^.]+)\./.exec(id)
-  return m?.[1] ?? null
+function commandsForRegion(
+  commands: ResolvedCommand[],
+  region: string | null,
+): ResolvedCommand[] {
+  return commands.filter(c => {
+    if (!c.visible || c.disabled || c.children) return false
+    if (c.kind !== 'action' && c.kind !== 'toggle' && c.kind !== 'radio') return false
+    return c.scope === region
+  })
 }
 
 /**
- * Build grouped context-menu commands from a one-time snapshot. Walks parents in
- * `scopeTree` until some scope has visible actionable commands (same pattern as a
- * native context menu bubbling conceptually “outward”).
+ * Build grouped context-menu commands. Walks parent regions in the DOM when the
+ * innermost region has no actionable commands.
  */
-export function buildContextMenuModelFromScope(
+export function buildContextMenuModel(
   options: BuildContextMenuModelOptions,
 ): ContextMenuModel {
   const {
     commands,
-    menuScope,
-    scopeTree,
+    context,
+    modes,
     bulkSelectionActive = false,
-    bulkScopedLayer = 'thread-item',
-    menuAnchorThreadId = null,
-    menuAnchorMessageId = null,
+    bulkRegion = 'thread-item',
   } = options
 
-  function commandsForScope(scope: string | null): ResolvedCommand[] {
-    return commands.filter(c => {
-      if (!c.visible || c.disabled || c.children) return false
-      if (c.kind !== 'action' && c.kind !== 'toggle' && c.kind !== 'radio') return false
-      return c.scope === scope
-    })
+  const menuRegion = context.regions[context.regions.length - 1] ?? null
+  let candidateRegion: string | null = menuRegion
+  let candidateElement = context.element
+  let regionIndex = context.regions.length - 1
+
+  let filtered = filterCommandsForContext(
+    commandsForRegion(commands, candidateRegion),
+    context,
+    { modes, bulkSelectionActive, bulkRegion, matchAnchor: true },
+  )
+
+  while (filtered.length === 0) {
+    if (candidateElement) {
+      const parentEl = getParentRegionElement(candidateElement)
+      if (!parentEl) break
+      candidateRegion = parentEl.getAttribute(DATA_COMMANDRY_REGION)
+      candidateElement = parentEl
+
+      const parentContext = buildContextFromElement(parentEl)
+
+      filtered = filterCommandsForContext(
+        commandsForRegion(commands, candidateRegion),
+        parentContext,
+        { modes, bulkSelectionActive, bulkRegion, matchAnchor: true },
+      )
+      continue
+    }
+
+    if (regionIndex <= 0) break
+    regionIndex -= 1
+    candidateRegion = context.regions[regionIndex] ?? null
+    const parentRegions = context.regions.slice(0, regionIndex + 1)
+    const parentContext: ActiveContext = {
+      ...context,
+      regions: parentRegions,
+    }
+
+    filtered = filterCommandsForContext(
+      commandsForRegion(commands, candidateRegion),
+      parentContext,
+      { modes, bulkSelectionActive, bulkRegion, matchAnchor: true },
+    )
   }
 
-  let actionable: ResolvedCommand[] = []
-  let candidate: string | null = menuScope
-  while (actionable.length === 0) {
-    actionable = commandsForScope(candidate)
-    if (actionable.length > 0 || candidate === null) break
-    const node = scopeTree.nodes.get(candidate)
-    candidate = node?.parent?.name ?? null
-  }
-
-  if (!bulkSelectionActive && menuAnchorThreadId && menuScope === 'thread-item') {
-    actionable = actionable.filter(c => {
-      if (c.scope !== 'thread-item') return true
-      const tid = threadIdFromThreadCommandId(c.id)
-      return tid === menuAnchorThreadId
-    })
-  }
-
-  if (!bulkSelectionActive && menuAnchorMessageId && menuScope === 'message') {
-    actionable = actionable.filter(c => {
-      if (c.scope !== 'message') return true
-      const mid = messageIdFromMessageCommandId(c.id)
-      return mid === menuAnchorMessageId
-    })
-  }
-
-  const bulkFiltered = bulkSelectionActive
-    ? actionable.filter(c => keepInBulkSelectionMode(c, bulkScopedLayer))
-    : actionable
-
-  bulkFiltered.sort((a, b) => {
+  filtered.sort((a, b) => {
     if (bulkSelectionActive) {
       const ba = a.bulkAction === true ? 1 : 0
       const bb = b.bulkAction === true ? 1 : 0
@@ -100,7 +102,7 @@ export function buildContextMenuModelFromScope(
 
   const seen = new Set<string>()
   const deduped: ResolvedCommand[] = []
-  for (const cmd of bulkFiltered) {
+  for (const cmd of filtered) {
     const key = `${cmd.group ?? ''}::${cmd.label}`
     if (seen.has(key)) continue
     seen.add(key)
@@ -115,5 +117,5 @@ export function buildContextMenuModelFromScope(
     map.set(group, list)
   }
 
-  return { menuScope, groups: map, empty: deduped.length === 0 }
+  return { menuRegion: candidateRegion, groups: map, empty: deduped.length === 0 }
 }

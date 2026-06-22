@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildScopeTree } from './scope'
-import { buildContextMenuModelFromScope } from './context-menu-model'
+import { buildContextMenuModel } from './context-menu-model'
+import type { ActiveContext } from '../dom/resolve-active-context'
 import type { ResolvedCommand } from './types'
 
 function cmd(
@@ -24,17 +24,16 @@ function cmd(
   } as ResolvedCommand
 }
 
-const tree = buildScopeTree({
-  app: { children: { item: {} } },
-})
+function ctx(regions: string[], anchors: Record<string, string> = {}): ActiveContext {
+  return { regions, anchors, ctx: {}, element: null }
+}
 
-describe('buildContextMenuModelFromScope', () => {
-  it('walks to parent scope when direct scope has no commands', () => {
+describe('buildContextMenuModel', () => {
+  it('includes commands for the menu region', () => {
     const commands = [cmd({ id: 'a', scope: 'app', label: 'Global' })]
-    const model = buildContextMenuModelFromScope({
+    const model = buildContextMenuModel({
       commands,
-      menuScope: 'item',
-      scopeTree: tree,
+      context: ctx(['app', 'item']),
     })
     expect(model.empty).toBe(false)
     expect([...model.groups.get('Actions')!].map(c => c.id)).toEqual(['a'])
@@ -45,15 +44,11 @@ describe('buildContextMenuModelFromScope', () => {
       cmd({ id: 'row', scope: 'thread-item', label: 'Archive', bulkAction: false }),
       cmd({ id: 'list', scope: 'thread-item', label: 'Archive', bulkAction: true }),
     ]
-    const itemTree = buildScopeTree({
-      app: { children: { 'thread-item': {} } },
-    })
-    const model = buildContextMenuModelFromScope({
+    const model = buildContextMenuModel({
       commands,
-      menuScope: 'thread-item',
-      scopeTree: itemTree,
+      context: ctx(['thread-item']),
       bulkSelectionActive: true,
-      bulkScopedLayer: 'thread-item',
+      bulkRegion: 'thread-item',
     })
     const items = [...model.groups.values()].flat()
     expect(items).toHaveLength(1)
@@ -65,16 +60,15 @@ describe('buildContextMenuModelFromScope', () => {
       cmd({ id: 'a', scope: 'app', label: 'Same', group: 'G' }),
       cmd({ id: 'b', scope: 'app', label: 'Same', group: 'G' }),
     ]
-    const model = buildContextMenuModelFromScope({
+    const model = buildContextMenuModel({
       commands,
-      menuScope: 'app',
-      scopeTree: tree,
+      context: ctx(['app']),
     })
     const items = model.groups.get('G') ?? []
     expect(items).toHaveLength(1)
   })
 
-  it('filters thread-item commands to menuAnchorThreadId when not bulk', () => {
+  it('filters thread-item commands to anchor threadId when not bulk', () => {
     const commands = [
       cmd({
         id: 'thread.t1.archive',
@@ -89,15 +83,10 @@ describe('buildContextMenuModelFromScope', () => {
         group: 'Thread',
       }),
     ]
-    const itemTree = buildScopeTree({
-      app: { children: { 'thread-item': {} } },
-    })
-    const model = buildContextMenuModelFromScope({
+    const model = buildContextMenuModel({
       commands,
-      menuScope: 'thread-item',
-      scopeTree: itemTree,
+      context: ctx(['thread-item'], { threadId: 't2' }),
       bulkSelectionActive: false,
-      menuAnchorThreadId: 't2',
     })
     const items = [...model.groups.values()].flat()
     expect(items.map(c => c.id)).toEqual(['thread.t2.archive'])

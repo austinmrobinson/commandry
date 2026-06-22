@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react'
+import type { ActiveContext } from '../dom/resolve-active-context'
 
 // ---------------------------------------------------------------------------
 // Platform
@@ -16,88 +17,16 @@ export type Shortcut = KeyCombo[]
 export type ShortcutField = Shortcut | Shortcut[]
 
 // ---------------------------------------------------------------------------
-// Scope type utilities
+// Active context (re-exported for convenience)
 // ---------------------------------------------------------------------------
 
-export interface ScopeDefinition {
-  ctx?: Record<string, unknown>
-  children?: Record<string, ScopeDefinition>
-}
-
-export type ExtractScopeKeys<T> = T extends Record<string, unknown>
-  ? {
-      [K in keyof T & string]: K | (T[K] extends { children: infer C extends Record<string, unknown> }
-        ? ExtractScopeKeys<C>
-        : never)
-    }[keyof T & string]
-  : never
-
-export type FindScope<T, Key extends string> = T extends Record<string, unknown>
-  ? Key extends keyof T
-    ? T[Key]
-    : {
-        [K in keyof T & string]: T[K] extends { children: infer C extends Record<string, unknown> }
-          ? FindScope<C, Key>
-          : never
-      }[keyof T & string]
-  : never
-
-export type GetScopeCtx<T, Key extends string> =
-  FindScope<T, Key> extends { ctx: infer C } ? C : Record<string, never>
-
-export type FindParentKey<
-  T,
-  Key extends string,
-  Parent extends string = never,
-> = T extends Record<string, unknown>
-  ? {
-      [K in keyof T & string]: Key extends K
-        ? Parent
-        : T[K] extends { children: infer C extends Record<string, unknown> }
-          ? FindParentKey<C, Key, K>
-          : never
-    }[keyof T & string]
-  : never
-
-export type MergedScopeCtx<T, Key extends string> =
-  GetScopeCtx<T, Key> &
-  (FindParentKey<T, Key> extends infer P extends string
-    ? MergedScopeCtx<T, P>
-    : Record<string, never>)
-
-export type ValidChildren<T, Key extends string> =
-  FindScope<T, Key> extends { children: infer C extends Record<string, unknown> }
-    ? keyof C & string
-    : never
-
-// ---------------------------------------------------------------------------
-// Runtime scope tree
-// ---------------------------------------------------------------------------
-
-export interface ScopeNode {
-  name: string
-  parent: ScopeNode | null
-  children: Map<string, ScopeNode>
-}
-
-export interface ScopeTree {
-  root: ScopeNode | null
-  nodes: Map<string, ScopeNode>
-}
-
-export interface RuntimeScopeConfig {
-  children?: Record<string, RuntimeScopeConfig>
-}
+export type { ActiveContext }
 
 /**
- * Immutable copy of {@link CommandRegistry.getActiveScopes} + per-scope context maps.
- * Capture synchronously when opening a command palette (before focus moves and
- * pointer-based scopes pop) to pin UI to the user’s gesture.
+ * Frozen {@link ActiveContext} captured when opening a command surface
+ * (palette, context menu) so filtering does not follow live pointer changes.
  */
-export interface ActiveScopeSnapshot {
-  readonly scopes: readonly string[]
-  readonly contexts: ReadonlyMap<string, Record<string, unknown>>
-}
+export type PinnedContext = ActiveContext
 
 // ---------------------------------------------------------------------------
 // Radio options
@@ -132,18 +61,17 @@ export interface BaseCommandDefinition {
   danger?: boolean
   variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
   shortcut?: ShortcutField
+  /** Region tag; omit to inherit from nearest {@link CommandRegion} at registration. */
   scope?: string
   when?: () => boolean
   enabled?: () => boolean
   shadow?: boolean
   external?: boolean
-  /**
-   * When true, this command participates in multi-target / bulk flows: shortcut
-   * resolution can prefer it while `preferBulkShortcuts` is active, and UIs may
-   * hide `bulkAction: false` commands when several items are selected.
-   */
   bulkAction?: boolean
-  [key: string]: unknown
+  /** Require all listed modes to be active for this command to be eligible. */
+  modes?: string[]
+  /** Hide when any listed mode is active. */
+  exceptModes?: string[]
 }
 
 export interface ActionCommandDefinition extends BaseCommandDefinition {
@@ -172,7 +100,6 @@ export interface ParentCommandDefinition {
   scope?: string
   when?: () => boolean
   children: CommandDefinitionMap
-  [key: string]: unknown
 }
 
 export type CommandDefinition =
@@ -221,9 +148,9 @@ export interface ResolvedCommand {
   value: (() => string) | undefined
   options: RadioOption[] | undefined
   execute: (args?: ExecuteArgs) => Promise<void>
-  /** `true` / `false` from the definition; omit on definition means `undefined`. */
   bulkAction?: boolean
-  [key: string]: unknown
+  modes?: string[]
+  exceptModes?: string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -251,7 +178,6 @@ export interface ShortcutBinding {
   enabled?: () => boolean
   external: boolean
   registeredAt: number
-  /** Mirrors command definition `bulkAction` for shortcut tie-breaking. */
   bulkAction?: boolean
 }
 
@@ -297,4 +223,10 @@ export interface SequenceState {
 export interface RegisterOptions {
   scope?: string | null
   ctx?: Record<string, unknown>
+}
+
+/** Selection state for palette filtering in list UIs. */
+export interface CommandSurfaceListSelection {
+  selectedThreadIds: string[]
+  selectedThreadId: string | null
 }

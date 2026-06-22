@@ -30,29 +30,32 @@ const titleStyle: CSSProperties = {
   letterSpacing: '0.06em',
 }
 
-/**
- * Floating debug panel for development. Enable with
- * `<CommandryProvider registry={…} devtools />`.
- */
 export function CommandryDevtools() {
   const { registry } = useCommandry()
 
   const snapshot = useSyncExternalStore(
     registry.subscribe,
     () => ({
-      scopes: registry.getActiveScopes(),
+      regions: registry.getEffectiveContext().regions,
+      modes: [...registry.getModes()],
       commandCount: registry.getCommands().length,
     }),
-    () => ({ scopes: [] as string[], commandCount: 0 }),
+    () => ({ regions: [] as string[], modes: [] as string[], commandCount: 0 }),
   )
 
   return (
     <div style={panelStyle} data-commandry-devtools>
       <div style={titleStyle}>Commandry</div>
       <div style={{ marginBottom: 8 }}>
-        <span style={{ color: '#94a3b8' }}>Active scopes</span>
+        <span style={{ color: '#94a3b8' }}>Active regions</span>
         <div style={{ marginTop: 4, wordBreak: 'break-word' }}>
-          {snapshot.scopes.length ? snapshot.scopes.join(' → ') : '(none)'}
+          {snapshot.regions.length ? snapshot.regions.join(' → ') : '(none)'}
+        </div>
+      </div>
+      <div style={{ marginBottom: 8 }}>
+        <span style={{ color: '#94a3b8' }}>Modes</span>
+        <div style={{ marginTop: 4, wordBreak: 'break-word' }}>
+          {snapshot.modes.length ? snapshot.modes.join(', ') : '(none)'}
         </div>
       </div>
       <div>

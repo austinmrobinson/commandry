@@ -12,8 +12,8 @@ import { useCommandry, useShortcutDisplay } from 'commandry/react'
 import { getMailState } from '@/lib/store'
 import type { ContextMenuModel, ResolvedCommand } from 'commandry'
 import {
-  buildContextMenuModelFromScope,
-  resolveCommandryScopeFromTarget,
+  buildContextMenuModel,
+  resolveRegionFromTarget,
 } from 'commandry'
 import {
   ContextMenu,
@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/context-menu'
 
 /** Mount-only / shell scopes — highlighting the wrapper would cover most of the UI */
-const CONTEXT_MENU_SKIP_SCOPE_HIGHLIGHT = new Set(['app', 'mailbox', 'thread-list'])
+const CONTEXT_MENU_SKIP_REGION_HIGHLIGHT = new Set(['app', 'mailbox', 'thread-list'])
 
 function ActionMenuItem({ cmd }: { cmd: ResolvedCommand }) {
   const Icon = cmd.icon as ComponentType<{ className?: string }> | undefined
@@ -164,27 +164,25 @@ export function AppContextMenu({ children }: { children: ReactNode }) {
         return
       }
       clearContextMenuHighlight()
-      const { scope, scopeElement, threadId, messageId } =
-        resolveCommandryScopeFromTarget(e.target)
+      const { region, regionElement, context } = resolveRegionFromTarget(e.target)
       const bulkThreadSelection = getMailState().selectedThreadIds.length > 0
+      const modes = registry.getModes()
       const snapshot = registry.getCommands()
       setPinnedModel(
-        buildContextMenuModelFromScope({
+        buildContextMenuModel({
           commands: snapshot,
-          menuScope: scope,
-          scopeTree: registry.scopeTree,
+          context,
+          modes,
           bulkSelectionActive: bulkThreadSelection,
-          menuAnchorThreadId: bulkThreadSelection ? null : threadId,
-          menuAnchorMessageId: bulkThreadSelection ? null : messageId,
         }),
       )
       if (
-        scope &&
-        scopeElement &&
-        !CONTEXT_MENU_SKIP_SCOPE_HIGHLIGHT.has(scope)
+        region &&
+        regionElement &&
+        !CONTEXT_MENU_SKIP_REGION_HIGHLIGHT.has(region)
       ) {
-        scopeElement.setAttribute('data-context-menu-open', '')
-        contextMenuHighlightRef.current = scopeElement
+        regionElement.setAttribute('data-context-menu-open', '')
+        contextMenuHighlightRef.current = regionElement
       }
     },
     [clearContextMenuHighlight, registry],

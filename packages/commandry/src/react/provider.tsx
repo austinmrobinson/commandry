@@ -5,32 +5,30 @@ import type { ShortcutAdapter, ShortcutBinding } from '../core/types'
 import { SequenceEngine } from '../core/sequence'
 import { detectPlatform } from '../core/shortcuts'
 import { CommandryDevtools } from './devtools'
+import {
+  enrichBindingWithRegionDepth,
+  isBindingEligibleForContext,
+} from '../core/filter-commands-for-context'
+import {
+  resolveActiveContext,
+  updatePointerPosition,
+} from '../dom/resolve-active-context'
 
 export interface CommandryProviderProps {
   registry: CommandRegistry
   children: ReactNode
   sequenceTimeout?: number
   shortcuts?: boolean | ShortcutAdapter
-  /**
-   * When true, renders a small floating panel (active scopes, command count).
-   * Intended for local development; pair with `process.env.NODE_ENV === 'development'` if needed.
-   */
   devtools?: boolean
   /**
    * When this returns true, shortcut ties prefer bindings from commands with
-   * `{ bulkAction: true }` before the usual scope-depth / registration order.
+   * `{ bulkAction: true }` before the usual region-depth / registration order.
    */
   preferBulkShortcuts?: () => boolean
   /**
-   * While `preferBulkShortcuts` is true, bindings for which this returns false are ignored
-   * (not eligible to handle the key). Pass `keepInBulkSelectionMode` from `commandry` to drop
-   * non-`bulkAction` commands in a list-item scope during multi-select.
+   * While `preferBulkShortcuts` is true, bindings for which this returns false are ignored.
    */
   shortcutBindingFilterWhileBulk?: (binding: ShortcutBinding) => boolean
-  /**
-   * Called when a command handler throws or rejects during shortcut execution.
-   * If omitted, errors are logged to the console.
-   */
   onCommandError?: (error: unknown, commandId: string) => void
 }
 
@@ -58,10 +56,40 @@ export function CommandryProvider({
   )
 
   useEffect(() => {
+    function onPointerMove(e: PointerEvent) {
+      updatePointerPosition(e.clientX, e.clientY)
+      const context = resolveActiveContext({
+        pin: registry.getContextPin() ?? undefined,
+        target: e.target,
+      })
+      registry.setLiveContext(context)
+    }
+
+    function refreshContext() {
+      const context = resolveActiveContext({
+        pin: registry.getContextPin() ?? undefined,
+      })
+      registry.setLiveContext(context)
+    }
+
+    document.addEventListener('pointermove', onPointerMove, { passive: true })
+    document.addEventListener('focusin', refreshContext, true)
+    document.addEventListener('focusout', refreshContext, true)
+    refreshContext()
+
+    return () => {
+      document.removeEventListener('pointermove', onPointerMove)
+      document.removeEventListener('focusin', refreshContext, true)
+      document.removeEventListener('focusout', refreshContext, true)
+    }
+  }, [registry])
+
+  useEffect(() => {
     if (shortcuts === false) return
 
     function executeCommand(commandId: string): void {
-      void registry.execute(commandId).catch((error) => {
+      const context = registry.getEffectiveContext()
+      void registry.execute(commandId, undefined, context).catch((error) => {
         if (commandErrorRef.current) {
           commandErrorRef.current(error, commandId)
           return
@@ -82,26 +110,37 @@ export function CommandryProvider({
         if (!event.metaKey && !event.ctrlKey && !event.altKey) return
       }
 
-      const bindings = registry.getShortcutBindings()
-      const activeScopes = registry.getActiveScopes()
-
-      const activeBindings = bindings.filter(b => {
-        if (b.external) return false
-        if (b.scope === null) return true
-        return activeScopes.includes(b.scope)
+      const context = resolveActiveContext({
+        pin: registry.getContextPin() ?? undefined,
+        target: event.target,
       })
+      registry.setLiveContext(context)
 
-      const preferBulk = preferBulkRef.current?.() === true
+      const bindings = registry.getShortcutBindings()
+      const modes = registry.getModes()
+      const bulkActive = modes.has('bulk') || preferBulkRef.current?.() === true
+
+      const activeBindings = bindings
+        .filter(b => !b.external)
+        .filter(b =>
+          isBindingEligibleForContext(b, context, {
+            bulkSelectionActive: bulkActive,
+            bulkRegion: 'thread-item',
+          }),
+        )
+        .map(b => enrichBindingWithRegionDepth(b, context))
+
       const filterWhileBulk = filterWhileBulkRef.current
 
       const availableBindings = activeBindings.filter(b => {
         if (b.when && !b.when()) return false
         if (b.enabled && !b.enabled()) return false
-        if (preferBulk && filterWhileBulk && !filterWhileBulk(b)) return false
+        if (bulkActive && filterWhileBulk && !filterWhileBulk(b)) return false
         return true
       })
+
       sequenceEngine.handleKeyDown(event, availableBindings, executeCommand, {
-        preferBulkShortcuts: preferBulk,
+        preferBulkShortcuts: bulkActive,
       })
     }
 

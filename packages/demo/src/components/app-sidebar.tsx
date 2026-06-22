@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useMemo } from "react"
-import { CommandScope, useRegisterCommands } from "commandry/react"
+import { CommandRegion, useRegisterCommands } from "commandry/react"
 import {
   Sidebar,
   SidebarContent,
@@ -279,10 +279,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarContent>
           <SidebarGroup className="px-0 pt-0">
             <SidebarGroupContent>
-              <CommandScope
-                scope="thread-list"
+              <CommandRegion
+                region="thread-list"
                 ctx={{ mailboxId: selectedMailboxId }}
-                activateOn="mount"
+                active
+                hover={false}
               >
                 <ThreadListBulkCommandsRegistrar />
                 {threads.length === 0 ? (
@@ -291,9 +292,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   </p>
                 ) : (
                   threads.map((t) => (
-                    <CommandScope
+                    <CommandRegion
                       key={t.id}
-                      scope="thread-item"
+                      region="thread-item"
                       ctx={{
                         threadId: t.id,
                         threadSubject: t.subject,
@@ -308,10 +309,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         isMultiSelecting={isMultiSelecting}
                         visibleThreadIds={visibleThreadIds}
                       />
-                    </CommandScope>
+                    </CommandRegion>
                   ))
                 )}
-              </CommandScope>
+              </CommandRegion>
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>

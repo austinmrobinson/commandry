@@ -235,92 +235,56 @@ describe('CommandRegistry', () => {
     })
   })
 
-  describe('scope management', () => {
-    it('pushScope / popScope maintain the stack', () => {
-      registry.pushScope('page', { pageId: '1' })
-      registry.pushScope('list', { listId: 'a' })
-
-      expect(registry.getActiveScopes()).toEqual(['page', 'list'])
-
-      registry.popScope('list')
-      expect(registry.getActiveScopes()).toEqual(['page'])
-    })
-
-    it('allows multiple holders for the same scope name (ref-counted)', () => {
-      registry.pushScope('item', { itemId: 'pane' })
-      expect(registry.getActiveScopes()).toEqual(['item'])
-
-      registry.pushScope('item', { itemId: 'row' })
-      expect(registry.getActiveScopes()).toEqual(['item'])
-      expect(registry.getActiveScopeContexts().get('item')).toEqual({ itemId: 'row' })
-
-      registry.popScope('item')
-      expect(registry.getActiveScopes()).toEqual(['item'])
-      expect(registry.getActiveScopeContexts().get('item')).toEqual({ itemId: 'pane' })
-
-      registry.popScope('item')
-      expect(registry.getActiveScopes()).toEqual([])
-    })
-
-    it('removeScopeHolder drops a specific holder without popping the active one', () => {
-      const idPane = registry.pushScope('item', { itemId: 'pane' })
-      registry.pushScope('item', { itemId: 'row' })
-      expect(registry.getActiveScopeContexts().get('item')).toEqual({ itemId: 'row' })
-      registry.removeScopeHolder(idPane)
-      expect(registry.getActiveScopes()).toEqual(['item'])
-      expect(registry.getActiveScopeContexts().get('item')).toEqual({ itemId: 'row' })
-    })
-
-    it('updateScopeHolderContext updates the active context when that holder is on top', () => {
-      const id = registry.pushScope('page', { pageId: '1' })
-      registry.updateScopeHolderContext(id, { pageId: '2' })
-      expect(registry.getActiveScopeContexts().get('page')).toEqual({ pageId: '2' })
-    })
-
-    it('updateScopeHolderContext on a buried holder leaves the active context unchanged', () => {
-      const idPane = registry.pushScope('item', { itemId: 'pane' })
-      registry.pushScope('item', { itemId: 'row' })
-      registry.updateScopeHolderContext(idPane, { itemId: 'pane-updated' })
-      expect(registry.getActiveScopeContexts().get('item')).toEqual({ itemId: 'row' })
-    })
-
-    it('getActiveScopeSnapshot is a detached copy of stack and contexts', () => {
-      registry.pushScope('item', { itemId: 'a' })
-      const snap = registry.getActiveScopeSnapshot()
-      expect(snap.scopes).toEqual(['item'])
-      expect(snap.contexts.get('item')).toEqual({ itemId: 'a' })
-      registry.popScope('item')
-      expect(registry.getActiveScopes()).toEqual([])
-      expect(snap.scopes).toEqual(['item'])
-      expect(snap.contexts.get('item')).toEqual({ itemId: 'a' })
-    })
-
-    it('pinActiveScopeSnapshot freezes until clearActiveScopeSnapshotPin', () => {
-      expect(registry.getActiveScopeSnapshotPin()).toBeNull()
-      registry.pushScope('item', { itemId: 'pinned' })
-      registry.pinActiveScopeSnapshot()
-      const pin = registry.getActiveScopeSnapshotPin()
-      expect(pin?.scopes).toEqual(['item'])
-      registry.popScope('item')
-      expect(registry.getActiveScopes()).toEqual([])
-      expect(registry.getActiveScopeSnapshotPin()?.scopes).toEqual(['item'])
-      registry.clearActiveScopeSnapshotPin()
-      expect(registry.getActiveScopeSnapshotPin()).toBeNull()
-    })
-
-    it('merges context from scope stack into handler', async () => {
+  describe('context and modes', () => {
+    it('setLiveContext merges into handler ctx', async () => {
       const handler = vi.fn()
-      registry.pushScope('page', { pageId: '1' })
-      registry.pushScope('item', { itemId: '42' })
-
+      registry.setLiveContext({
+        regions: ['page', 'item'],
+        anchors: {},
+        ctx: { pageId: '1', itemId: '42' },
+        element: null,
+      })
       registry.register({ 'cmd': { label: 'Cmd', handler } })
       await registry.execute('cmd')
-
       expect(handler).toHaveBeenCalledWith(
         expect.objectContaining({
           ctx: expect.objectContaining({ pageId: '1', itemId: '42' }),
         }),
       )
+    })
+
+    it('pinContext overrides live context until cleared', () => {
+      registry.setLiveContext({
+        regions: ['live'],
+        anchors: {},
+        ctx: { from: 'live' },
+        element: null,
+      })
+      registry.pinContext({
+        regions: ['pinned'],
+        anchors: {},
+        ctx: { from: 'pinned' },
+        element: null,
+      })
+      expect(registry.getEffectiveContext().regions).toEqual(['pinned'])
+      registry.clearContextPin()
+      expect(registry.getEffectiveContext().regions).toEqual(['live'])
+    })
+
+    it('setModes stores active modes', () => {
+      registry.setModes(['bulk', 'palette'])
+      expect(registry.getModes()).toEqual(new Set(['bulk', 'palette']))
+    })
+
+    it('getRegionDepth uses context region index', () => {
+      const ctx = {
+        regions: ['app', 'thread-item'],
+        anchors: {},
+        ctx: {},
+        element: null,
+      }
+      expect(registry.getRegionDepth('thread-item', ctx)).toBe(1)
+      expect(registry.getRegionDepth('app', ctx)).toBe(0)
     })
   })
 
@@ -396,55 +360,5 @@ describe('CommandRegistry', () => {
       expect(cmd.childIds).toEqual(['parent.child'])
     })
 
-    it('spreads custom properties', () => {
-      registry.register({
-        'custom': {
-          label: 'Custom',
-          handler: vi.fn(),
-          requiredRole: 'admin',
-          analytics: 'custom_event',
-        } as any,
-      })
-
-      const cmd = registry.getCommand('custom')!
-      expect(cmd.requiredRole).toBe('admin')
-      expect(cmd.analytics).toBe('custom_event')
-    })
-  })
-
-  describe('scope tree dev warnings', () => {
-    it('warns when pushing an unknown scope name', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-      const r = new CommandRegistry({
-        scopes: {
-          page: { children: { 'task-list': { children: { 'task-item': {} } } } },
-        },
-      })
-      r.pushScope('not-in-tree', {})
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Unknown scope 'not-in-tree'"),
-      )
-      warnSpy.mockRestore()
-    })
-
-    it('warns when two active scopes are incomparable in the tree', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-      const r = new CommandRegistry({
-        scopes: {
-          page: {
-            children: {
-              'task-list': { children: { 'task-item': {} } },
-              canvas: { children: { 'canvas-node': {} } },
-            },
-          },
-        },
-      })
-      r.pushScope('task-list', {})
-      r.pushScope('canvas-node', {})
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Incompatible active scopes'),
-      )
-      warnSpy.mockRestore()
-    })
   })
 })

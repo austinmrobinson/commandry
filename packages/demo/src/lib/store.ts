@@ -1,6 +1,7 @@
 import { useMemo, useSyncExternalStore } from 'react'
 import type { MailboxId } from './mock-data'
 import { getThreadById } from './mock-data'
+import { resolveActiveContext } from 'commandry'
 import { registry } from '@/lib/commandry'
 
 export type ThemeMode = 'dark' | 'light'
@@ -142,10 +143,14 @@ export function bulkSetThreadLabel(threadIds: string[], labelId: string) {
 export function setCommandPaletteOpen(open: boolean) {
   if (open) {
     if (!state.commandPaletteOpen) {
-      registry.pinActiveScopeSnapshot()
+      registry.pinContext(resolveActiveContext())
+      registry.setModes([...registry.getModes(), 'palette'])
     }
   } else {
-    registry.clearActiveScopeSnapshotPin()
+    registry.clearContextPin()
+    const modes = new Set(registry.getModes())
+    modes.delete('palette')
+    registry.setModes(modes)
   }
   patch({ commandPaletteOpen: open })
 }

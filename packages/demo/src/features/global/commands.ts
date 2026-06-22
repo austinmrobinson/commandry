@@ -1,5 +1,5 @@
 import { FileText, Inbox, Moon, Palette, Send, Settings, Sun, Trash2 } from 'lucide-react'
-import { defineCommands } from '@/lib/commandry'
+import type { CommandDefinitionMap } from 'commandry'
 import { showToast } from '@/lib/show-toast'
 import {
   openSettings,
@@ -10,7 +10,7 @@ import {
 } from '@/lib/store'
 import { getThreadsForMailbox } from '@/lib/thread-utils'
 
-export const globalCommands = defineCommands({
+export const globalCommands = {
   'global.commandPalette': {
     label: 'Command palette',
     icon: Palette,
@@ -70,4 +70,4 @@ export const globalCommands = defineCommands({
     shortcut: [['g'], ['t']],
     handler: () => setSelectedMailboxId('trash', getThreadsForMailbox('trash')[0]?.id),
   },
-})
+} satisfies CommandDefinitionMap
