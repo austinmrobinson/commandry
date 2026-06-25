@@ -1,26 +1,621 @@
 @import "tailwindcss";
+@import "sonner/dist/styles.css";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-@custom-variant dark (&:where(.dark, .dark *));
-
-:root {
-  --background: #fafafa;
-  --foreground: #18181b;
+/* Touch / coarse pointer: row actions have no :hover — keep them visible */
+@media (any-pointer: coarse) {
+  .item-actions-reveal {
+    opacity: 1;
+  }
 }
 
-.dark {
-  --background: #09090b;
-  --foreground: #f4f4f5;
+@custom-variant dark (&:is(.dark *));
+@plugin "@tailwindcss/typography";
+
+@layer base {
+  :root {
+    /* Overview hero shortcut keycap — matches Commandry logo inset bevel */
+    --hero-keycap-rest-shadow: inset 0 2.5px 0 0 rgba(255, 255, 255, 0.22),
+      inset 0 -2.5px 0 0 #000;
+    /* Pressed: no top highlight; single dark inset from top (3px y) */
+    --hero-keycap-pressed-shadow: inset 0 3px 8px -2px rgba(0, 0, 0, 0.58);
+  }
+  .dark {
+    --hero-keycap-rest-shadow: inset 0 2.5px 0 0 rgba(255, 255, 255, 0.18),
+      inset 0 -2.5px 0 0 #000;
+    --hero-keycap-pressed-shadow: inset 0 3px 8px -2px rgba(0, 0, 0, 0.72);
+  }
 }
 
+@theme {
+  /* Custom breakpoint */
+  --breakpoint-xs: 475px;
+
+  /* Font families (Lora via next/font --font-serif; matches dotcom) */
+  --font-sans: var(--font-serif);
+  --font-mono: var(--font-geist-mono);
+  /* Hand-drawn marker (Permanent Marker via next/font --font-marker) */
+  --font-hand-marker: var(--font-marker), ui-sans-serif, system-ui, sans-serif;
+
+  /* Custom keyframes */
+  @keyframes overlayShow {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes contentShow {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -48%) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  /* Overview hero: single-key shortcut feedback — keycap “press” */
+  @keyframes heroShortcutKeyPress {
+    0%,
+    100% {
+      transform: translateY(0) scale(1);
+      box-shadow: var(--hero-keycap-rest-shadow);
+    }
+    35% {
+      transform: translateY(5px) scale(0.94);
+      box-shadow: var(--hero-keycap-pressed-shadow);
+    }
+  }
+
+  /* Custom animations */
+  --animate-overlayShow: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-contentShow: contentShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-heroShortcutKeyPress: heroShortcutKeyPress 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* shadcn/ui theme inline - maps CSS variables to Tailwind colors */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* Custom semantic colors */
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-overlay-subtle: var(--overlay-subtle);
+  --color-overlay-light: var(--overlay-light);
+  --color-overlay-medium: var(--overlay-medium);
+  --color-overlay-strong: var(--overlay-strong);
+  --color-overlay-white: var(--overlay-white);
+  --color-border-hairline: var(--border-hairline);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-light: var(--border-light);
+  --color-border-medium: var(--border-medium);
+  --color-border-strong: var(--border-strong);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-skeleton: var(--skeleton);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-badge-bg: var(--badge-bg);
+  --font-serif: var(--font-serif);
+  --font-heading: var(--font-heading);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+  --border-width-hairline: var(--theme-border-width-hairline);
+}
+
+:root {
+  --theme-border-width-hairline: 1px;
+
+  /* shadcn/ui base variables - neutral theme (achromatic; matches dotcom) */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.967 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.967 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.967 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --radius: 0.45rem;
+  --chart-1: oklch(0.845 0.143 164.978);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.596 0.145 163.225);
+  --chart-4: oklch(0.508 0.118 165.612);
+  --chart-5: oklch(0.432 0.095 166.913);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.967 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+
+  /* Custom semantic colors - text */
+  --text-secondary: oklch(0.439 0 0);
+  --text-tertiary: oklch(0.556 0 0);
+
+  /* Overlay backgrounds (neutral with opacity) */
+  --overlay-subtle: oklch(0.205 0 0 / 0.05);
+  --overlay-light: oklch(0.205 0 0 / 0.1);
+  --overlay-medium: oklch(0.205 0 0 / 0.15);
+  --overlay-strong: oklch(0.205 0 0 / 0.2);
+  --overlay-white: oklch(1 0 0 / 0.2);
+
+  /* Borders with opacity */
+  --border-hairline: oklch(0.869 0 0 / 0.005);
+  --border-subtle: oklch(0.205 0 0 / 0.05);
+  --border-light: oklch(0.205 0 0 / 0.1);
+  --border-medium: oklch(0.205 0 0 / 0.2);
+  --border-strong: oklch(0.205 0 0 / 0.3);
+
+  /* Status colors */
+  --success: oklch(0.627 0.178 149.2);
+  --success-foreground: oklch(1 0 0);
+
+  /* Skeleton loading */
+  --skeleton: oklch(0.205 0 0 / 0.15);
+
+  /* Elevated surfaces */
+  --surface-elevated: oklch(1 0 0);
+
+  /* Badge background */
+  --badge-bg: oklch(0.869 0 0);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+}
+
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi), (min-resolution: 2dppx) {
+  :root {
+    --theme-border-width-hairline: 0.5px;
+  }
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.845 0.143 164.978);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.596 0.145 163.225);
+  --chart-4: oklch(0.508 0.118 165.612);
+  --chart-5: oklch(0.432 0.095 166.913);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+
+  --text-secondary: oklch(0.708 0 0);
+  --text-tertiary: oklch(0.556 0 0);
+
+  --overlay-subtle: oklch(1 0 0 / 0.05);
+  --overlay-light: oklch(1 0 0 / 0.1);
+  --overlay-medium: oklch(1 0 0 / 0.15);
+  --overlay-strong: oklch(1 0 0 / 0.2);
+  --overlay-white: oklch(1 0 0 / 0.2);
+
+  --border-hairline: oklch(1 0 0 / 0.005);
+  --border-subtle: oklch(1 0 0 / 0.05);
+  --border-light: oklch(1 0 0 / 0.1);
+  --border-medium: oklch(1 0 0 / 0.2);
+  --border-strong: oklch(1 0 0 / 0.3);
+
+  --success: oklch(0.627 0.178 149.2);
+  --success-foreground: oklch(0.205 0 0);
+
+  --skeleton: oklch(1 0 0 / 0.15);
+
+  --surface-elevated: oklch(0.269 0 0);
+
+  --badge-bg: oklch(0.439 0 0);
+}
+
+/*
+ * Support system dark mode preference
+ * Note: These values mirror .dark above to support both class-based theming
+ * (manual toggle) and system-preference-based theming. Keep them in sync.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --destructive-foreground: oklch(0.985 0 0);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.845 0.143 164.978);
+    --chart-2: oklch(0.696 0.17 162.48);
+    --chart-3: oklch(0.596 0.145 163.225);
+    --chart-4: oklch(0.508 0.118 165.612);
+    --chart-5: oklch(0.432 0.095 166.913);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+
+    --text-secondary: oklch(0.708 0 0);
+    --text-tertiary: oklch(0.556 0 0);
+
+    --overlay-subtle: oklch(1 0 0 / 0.05);
+    --overlay-light: oklch(1 0 0 / 0.1);
+    --overlay-medium: oklch(1 0 0 / 0.15);
+    --overlay-strong: oklch(1 0 0 / 0.2);
+    --overlay-white: oklch(1 0 0 / 0.2);
+
+    --border-hairline: oklch(1 0 0 / 0.005);
+    --border-subtle: oklch(1 0 0 / 0.05);
+    --border-light: oklch(1 0 0 / 0.1);
+    --border-medium: oklch(1 0 0 / 0.2);
+    --border-strong: oklch(1 0 0 / 0.3);
+
+    --success: oklch(0.627 0.178 149.2);
+    --success-foreground: oklch(0.205 0 0);
+
+    --skeleton: oklch(1 0 0 / 0.15);
+
+    --surface-elevated: oklch(0.269 0 0);
+
+    --badge-bg: oklch(0.439 0 0);
+  }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 16px;
+  background-color: var(--background);
+}
+
+@utility text-balance {
+  text-wrap: balance;
+}
+
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-serif;
+    /* Avoid horizontal jump when dialogs (cmdk) toggle body overflow / scroll lock */
+    scrollbar-gutter: stable;
+  }
+}
+
+/* Overview hero: pin Sonner list to the demo card (library defaults to fixed/viewport) */
+.overview-hero-toast-host [data-sonner-toaster] {
+  position: absolute !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  padding-left: 0.75rem !important;
+  padding-right: 0.75rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  /* Match docs UI (`@theme --font-sans` / Button); Sonner defaults to ui-sans-serif. */
+  font-family: var(--font-sans), var(--font-serif), ui-serif, Georgia, serif !important;
+}
+
+/* Same chip as `TooltipContent`: `bg-foreground` / `text-background`, `--radius-md`. */
+.overview-hero-toast-host [data-sonner-toast][data-styled="true"] {
+  border-radius: var(--radius-md) !important;
+  background: var(--foreground) !important;
+  border-color: transparent !important;
+  color: var(--background) !important;
+  box-shadow: none !important;
+}
+
+/* Overview hero: quicker toast exit (default Sonner transition is slower) */
+.overview-hero-toast-host [data-sonner-toast] {
+  transition-duration: 0.18s;
+}
+
+/*
+ * Overview hero code panel: tab strip scopes light/system tokens for inactive tabs while `html` may
+ * be `.dark`; the strip itself is transparent so the parent surface shows through. Active tab +
+ * code panel stay on `.dark` tokens (see wrapper in component).
+ */
+.overview-hero-code-tablist-chrome {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --muted: oklch(0.967 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --border: oklch(0.922 0 0);
+  background-color: transparent;
+}
+
+/* Active tab uses `.dark` `--background` / `--foreground` so it meets the code panel below. */
+.overview-hero-code-tablist-chrome [role="tab"][data-state="active"],
+.overview-hero-code-tablist-chrome [role="tab"][aria-selected="true"] {
+  background-color: oklch(0.145 0 0) !important;
+  color: oklch(0.985 0 0) !important;
+  border-color: oklch(1 0 0 / 10%) !important;
+}
+
+.overview-hero-code-tablist-chrome [role="tab"][data-state="active"]::after,
+.overview-hero-code-tablist-chrome [role="tab"][aria-selected="true"]::after {
+  background-color: oklch(0.145 0 0) !important;
+}
+
+/* No rule line under the tab row (TabsList + inactive trigger `border-b` removed for this strip). */
+.overview-hero-code-tablist-chrome [role="tab"][data-state="inactive"] {
+  border-bottom-width: 0 !important;
+}
+
+/*
+ * Overview hero Commands tab: line-based highlight (rehype-pretty-code / shadcn taxonomy pattern).
+ * @see https://tx.shadcn.com/docs/documentation/code-blocks
+ */
+/* Strip Shiki theme inline pre background so code area matches page `background` (and active tab). */
+.overview-hero-code-shiki pre.shiki,
+.overview-hero-registry-shiki pre.shiki {
+  background-color: transparent !important;
+}
+
+.overview-hero-registry-shiki [data-line] {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  margin-left: -0.75rem;
+  margin-right: -0.75rem;
+  display: inline-block;
+  min-width: 100%;
+  box-sizing: border-box;
+  border-left: 3px solid transparent;
+  border-radius: 0;
+}
+
+/* Match overview hint arrows/annotations (`text-green-600` / `dark:text-green-400`): soft fill + solid bar. */
+.overview-hero-registry-shiki [data-highlighted-line] {
+  background-color: rgb(22 163 69 / 0.14) !important;
+  border-left-color: rgb(22 163 69);
+  border-left-style: solid;
+}
+
+.dark .overview-hero-registry-shiki [data-highlighted-line] {
+  background-color: rgb(74 222 128 / 0.16) !important;
+  border-left-color: rgb(74 222 128);
+}
+
+/* Token spans can carry Shiki inline backgrounds; clear them inside a highlighted line so the row fill shows. */
+.overview-hero-registry-shiki [data-highlighted-line] span {
+  background-color: transparent !important;
+}
+
+/* Do not set a single `color` on `.shiki span` under `.dark` — the hero panel uses a nested `.dark`
+ * scope + `vitesse-dark`; forcing `var(--shiki-dark)` on every token flattens syntax highlighting. */
+
+/* Docs: dotcom typography scale (body-sized headings, muted section labels) */
+@layer components {
+  .hero-shortcut-keycap {
+    box-shadow: var(--hero-keycap-rest-shadow);
+  }
+
+  .docs-site {
+    font-family: var(--font-serif), Georgia, ui-serif, serif;
+  }
+
+  .docs-site .docs-article.prose {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+
+  .docs-site .docs-article.prose :where(h1, h2, h3, h4, h5, h6) {
+    font-family: var(--font-serif), Georgia, ui-serif, serif;
+  }
+
+  /* Dotcom homepage pattern: h1 same size as body, medium weight */
+  .docs-site .docs-article.prose :where(h1) {
+    margin-top: 0;
+    margin-bottom: 0;
+    font-size: 1em;
+    font-weight: 500;
+    line-height: 1.5rem;
+    letter-spacing: -0.005rem;
+    color: var(--foreground);
+  }
+
+  .docs-site .docs-article.prose :where(h2) {
+    margin-top: 1.125rem;
+    margin-bottom: 0.25rem;
+    font-size: 1em;
+    font-weight: 500;
+    line-height: 1.5rem;
+    letter-spacing: -0.005rem;
+    color: var(--muted-foreground);
+  }
+
+  .docs-site .docs-article.prose :where(h2:first-child) {
+    margin-top: 0;
+  }
+
+  .docs-site .docs-article.prose :where(h3) {
+    margin-top: 0.875rem;
+    margin-bottom: 0.25rem;
+    font-size: 1em;
+    font-weight: 500;
+    line-height: 1.5rem;
+    letter-spacing: -0.005rem;
+    color: var(--muted-foreground);
+  }
+
+  .docs-site .docs-article.prose :where(h3:first-child) {
+    margin-top: 0;
+  }
+
+  .docs-site .docs-article.prose :where(p) {
+    margin-top: 0;
+    margin-bottom: 0;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: 1.5rem;
+    letter-spacing: -0.005rem;
+    color: var(--text-secondary);
+  }
+
+  .docs-site .docs-article.prose > p + p {
+    margin-top: 0.625rem;
+  }
+
+  /**
+   * Collapse default prose trailing margins on direct children; first block has no
+   * extra top margin. Paragraph-to-paragraph spacing uses `> p + p` above.
+   */
+  .docs-site .docs-article.prose > * {
+    margin-block-end: 0;
+  }
+
+  .docs-site .docs-article.prose > :first-child {
+    margin-block-start: 0;
+  }
+
+  .docs-site .docs-article.prose > h2:not(:first-child) {
+    margin-top: 1.125rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .docs-site .docs-article.prose > h2:first-child {
+    margin-top: 0;
+  }
+
+  .docs-site .docs-article.prose > h3:not(:first-child) {
+    margin-top: 0.875rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .docs-site .docs-article.prose > h3:first-child {
+    margin-top: 0;
+  }
+
+  .docs-site .docs-article.prose ul > li,
+  .docs-site .docs-article.prose ol > li {
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: 1.5rem;
+    letter-spacing: -0.005rem;
+    color: var(--text-secondary);
+  }
+
+  .docs-site .docs-article.prose :where(ul > li)::marker,
+  .docs-site .docs-article.prose :where(ol > li)::marker {
+    color: var(--text-tertiary);
+  }
+
+  .docs-site .docs-article.prose :where(ul, ol, pre, blockquote, hr) {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .docs-site .docs-article.prose code:not(pre code) {
+    font-family: var(--font-mono), ui-monospace, SFMono-Regular, "SF Mono", Menlo,
+      Consolas, monospace;
+    font-size: 1em;
+    background: var(--overlay-subtle);
+    padding: 0.1rem 0.35rem;
+    border-radius: 0.25rem;
+    color: var(--foreground);
+  }
+
+  /* Shiki code blocks: match site chrome; dual-theme tokens from Shiki output */
+  .docs-code-block pre.shiki {
+    background-color: transparent !important;
+  }
+
+  .dark .docs-code-block .shiki,
+  .dark .docs-code-block .shiki span {
+    color: var(--shiki-dark) !important;
+    background-color: transparent !important;
+    font-style: var(--shiki-dark-font-style) !important;
+    font-weight: var(--shiki-dark-font-weight) !important;
+    text-decoration: var(--shiki-dark-text-decoration) !important;
+  }
 }
