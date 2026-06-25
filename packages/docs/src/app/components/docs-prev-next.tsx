@@ -8,8 +8,7 @@ import { getDocNeighbors } from "@/app/lib/docs-nav";
 import { cn } from "@/app/lib/utils";
 
 const cardClass =
-  "group flex flex-col gap-1 rounded-lg border border-black/[0.08] bg-black/[0.02] px-3 py-3 transition-[border-color,background-color] dark:border-white/10 dark:bg-white/[0.03] " +
-  "hover:border-black/[0.12] hover:bg-black/[0.04] dark:hover:border-white/14 dark:hover:bg-white/[0.05]";
+  "group flex flex-col gap-1 rounded-lg border border-border bg-overlay-subtle px-3 py-3 transition-[border-color,background-color] hover:border-border-medium hover:bg-overlay-light";
 
 export function DocsPrevNext() {
   const pathname = usePathname();
@@ -20,7 +19,7 @@ export function DocsPrevNext() {
   return (
     <nav
       aria-label="Adjacent pages"
-      className="not-prose mt-12 border-t border-black/[0.06] pt-8 dark:border-white/10"
+      className="not-prose mt-14 border-t border-border-subtle pt-8 sm:mt-16"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {prev ? (
@@ -29,11 +28,11 @@ export function DocsPrevNext() {
             prefetch
             className={cn(cardClass, "items-start text-left")}
           >
-            <span className="flex items-center gap-1.5 text-[0.6875rem] font-medium uppercase tracking-wide text-black/45 dark:text-white/45">
+            <span className="flex items-center gap-1.5 text-[0.6875rem] font-medium uppercase tracking-wide text-text-tertiary">
               <ArrowLeft className="size-3.5 shrink-0 opacity-70" aria-hidden />
               Previous
             </span>
-            <span className="text-base font-[500] text-[#111] dark:text-[#e8e8e8]">
+            <span className="text-base font-medium text-foreground">
               {prev.title}
             </span>
           </Link>
@@ -49,11 +48,11 @@ export function DocsPrevNext() {
               !prev && "sm:col-start-2"
             )}
           >
-            <span className="flex items-center gap-1.5 text-[0.6875rem] font-medium uppercase tracking-wide text-black/45 dark:text-white/45">
+            <span className="flex items-center gap-1.5 text-[0.6875rem] font-medium uppercase tracking-wide text-text-tertiary">
               Next
               <ArrowRight className="size-3.5 shrink-0 opacity-70" aria-hidden />
             </span>
-            <span className="text-base font-[500] text-[#111] dark:text-[#e8e8e8]">
+            <span className="text-base font-medium text-foreground">
               {next.title}
             </span>
           </Link>

@@ -16,10 +16,10 @@ import {
 import { FileText, MoreVertical, PanelRight } from "lucide-react"
 import { Toaster } from "sonner"
 import {
-  buildContextMenuModelFromScope,
+  buildContextMenuModel,
   detectPlatform,
   matchesCombo,
-  resolveCommandryScopeFromTarget,
+  resolveRegionFromTarget,
 } from "commandry"
 import type {
   ContextMenuModel,
@@ -28,8 +28,8 @@ import type {
   Shortcut,
 } from "commandry"
 import {
+  CommandRegion,
   CommandryProvider,
-  CommandScope,
   useCommandry,
   useCommandSearch,
   useCommands,
@@ -41,7 +41,7 @@ import {
   type HeroToastTrigger,
 } from "@/app/lib/overview-hero-commands"
 import {
-  OVERVIEW_HERO_SCOPE,
+  OVERVIEW_HERO_REGION,
   OVERVIEW_HERO_TOASTER_ID,
   overviewHeroRegistry,
 } from "@/app/lib/overview-hero-registry"
@@ -378,16 +378,16 @@ const OverviewHeroInner = forwardRef<OverviewHeroHandle>(
 
   useRegisterCommands(commands)
 
-  const scoped = useCommands({ scopes: [OVERVIEW_HERO_SCOPE] })
+  const scoped = useCommands({ scopes: [OVERVIEW_HERO_REGION] })
   const byId = useMemo(() => commandMap(scoped), [scoped])
 
   const { results, search, setSearch } = useCommandSearch({
-    scopes: [OVERVIEW_HERO_SCOPE],
+    regions: [OVERVIEW_HERO_REGION],
   })
 
   const paletteRows = useMemo(() => {
     if (!search) return results
-    return results.filter((r) => r.scope === OVERVIEW_HERO_SCOPE)
+    return results.filter((r) => r.scope === OVERVIEW_HERO_REGION)
   }, [results, search])
 
   useEffect(() => {
@@ -557,13 +557,13 @@ const OverviewHeroInner = forwardRef<OverviewHeroHandle>(
 
   const handleContextMenuCapture = useCallback(
     (e: React.MouseEvent) => {
-      const { scope } = resolveCommandryScopeFromTarget(e.target)
+      const { context } = resolveRegionFromTarget(e.target)
       const snapshot = registry.getCommands()
       setPinnedModel(
-        buildContextMenuModelFromScope({
+        buildContextMenuModel({
           commands: snapshot,
-          menuScope: scope,
-          scopeTree: registry.scopeTree,
+          context,
+          modes: registry.getModes(),
         }),
       )
       setContextMenuOpen(true)
@@ -767,7 +767,7 @@ const OverviewHeroInner = forwardRef<OverviewHeroHandle>(
           open={paletteOpen}
           onOpenChange={setPaletteOpen}
           title="Commands"
-          description="Run an action from the overview hero scope"
+          description="Run an action from the overview hero region"
         >
           <Command shouldFilter={false} loop>
             <CommandInput
@@ -827,11 +827,11 @@ export const OverviewHeroLive = forwardRef<
 >(function OverviewHeroLive({ className }, ref) {
   return (
     <CommandryProvider registry={overviewHeroRegistry} shortcuts={false}>
-      <CommandScope
+      <CommandRegion
         asChild
-        scope={OVERVIEW_HERO_SCOPE}
+        region={OVERVIEW_HERO_REGION}
         ctx={{}}
-        activateOn="mount"
+        active
         className={cn(
           "flex h-full min-h-0 min-w-0 flex-1 flex-col self-stretch",
           className,
@@ -840,7 +840,7 @@ export const OverviewHeroLive = forwardRef<
         <div>
           <OverviewHeroInner ref={ref} />
         </div>
-      </CommandScope>
+      </CommandRegion>
     </CommandryProvider>
   )
 })

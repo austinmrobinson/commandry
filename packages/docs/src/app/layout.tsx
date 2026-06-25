@@ -7,7 +7,7 @@ import "./globals.css";
 
 const lora = Lora({
   subsets: ["latin"],
-  variable: "--font-lora",
+  variable: "--font-serif",
   display: "swap",
 });
 
@@ -47,10 +47,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${lora.variable} ${merriweatherHeading.variable} ${geistMono.variable} ${handMarker.variable} h-full antialiased`}
+      className={`${lora.variable} ${merriweatherHeading.variable} ${geistMono.variable} ${handMarker.variable} h-full font-serif antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full bg-background pt-4 font-sans sm:pt-6">
+      <body className="flex min-h-[100vh] w-full flex-col bg-background text-sm text-text-secondary antialiased transition-colors duration-300">
         <Providers>
           <DocsShell>{children}</DocsShell>
         </Providers>

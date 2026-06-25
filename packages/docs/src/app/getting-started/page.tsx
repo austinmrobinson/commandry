@@ -13,9 +13,9 @@ export default async function GettingStartedPage() {
     <DocProse>
       <h1>Getting started</h1>
       <p>
-        Install <code>commandry</code>, configure a scope tree with{" "}
-        <code>createCommandry</code>, wrap your app with <code>CommandryProvider</code>, and
-        register commands with <code>defineCommands</code> and{" "}
+        Install <code>commandry</code>, create a registry with{" "}
+        <code>createRegistry</code>, wrap your app with <code>CommandryProvider</code>, nest{" "}
+        <code>CommandRegion</code> in your UI, and register commands with{" "}
         <code>useRegisterCommands</code>. React hooks and components live in{" "}
         <code>commandry/react</code>.
       </p>
@@ -23,55 +23,25 @@ export default async function GettingStartedPage() {
       <h2>Install</h2>
       <InstallCommandBlock />
 
-      <h2>1. Configure scopes and registry</h2>
+      <h2>1. Create the registry</h2>
       <p>
-        Scopes define <em>where</em> commands are active. Pass a nested{" "}
-        <code>scopes</code> object to <code>createCommandry</code> that mirrors your UI hierarchy.{" "}
-        Nesting <em>is</em> the parent-child relationship—no separate declaration.
+        <code>createRegistry()</code> returns a shared <strong>registry</strong>. Import React APIs
+        from <code>commandry/react</code> (or re-export from a single{" "}
+        <code>@/lib/commandry</code> module).
       </p>
-      <p>
-        <code>createCommandry</code> returns the <strong>registry</strong> and a{" "}
-        <code>defineCommands</code> helper. Import React APIs from <code>commandry/react</code>{" "}
-        (or re-export from a single <code>@/lib/commandry</code> module).
-      </p>
-      <CodeBlock title="lib/commandry.ts">{`import { createCommandry } from 'commandry'
+      <CodeBlock title="lib/commandry.ts">{`import { createRegistry } from 'commandry'
 
-/** Optional: mirror \`scopes\` in a type for documentation and app-level helpers. */
-type _ScopeNames =
-  | 'page'
-  | 'task-list'
-  | 'task-item'
-  | 'canvas'
-  | 'canvas-node'
-
-export const { registry, defineCommands } = createCommandry({
-  scopes: {
-    page: {
-      children: {
-        'task-list': {
-          children: {
-            'task-item': {},
-          },
-        },
-        canvas: {
-          children: {
-            'canvas-node': {},
-          },
-        },
-      },
-    },
-  },
-})`}</CodeBlock>
+export const registry = createRegistry()`}</CodeBlock>
 
       <h2>2. Define commands where they live</h2>
       <p>
-        Colocate command maps with features. Use <code>defineCommands</code> for a typed map of
-        id → definition.
+        Colocate command maps with features. Each entry is id → definition—a plain object map of
+        type <code>CommandDefinitionMap</code>.
       </p>
-      <CodeBlock title="features/tasks/commands.ts">{`import { defineCommands } from '@/lib/commandry'
+      <CodeBlock title="features/tasks/commands.ts">{`import type { CommandDefinitionMap } from 'commandry'
 import { Plus, Trash2 } from 'lucide-react'
 
-export const taskCommands = defineCommands({
+export const taskCommands: CommandDefinitionMap = {
   'task.create': {
     label: 'New Task',
     icon: Plus,
@@ -87,12 +57,12 @@ export const taskCommands = defineCommands({
     danger: true,
     handler: ({ ctx }) => deleteTask(ctx.taskId),
   },
-})`}</CodeBlock>
+}`}</CodeBlock>
       <p>
-        There is no <code>scope</code> on these definitions—they inherit scope from whichever{" "}
-        <code>CommandScope</code> wraps the component that calls{" "}
+        There is no <code>scope</code> on these definitions—they inherit region from whichever{" "}
+        <code>CommandRegion</code> wraps the component that calls{" "}
         <code>useRegisterCommands</code>. See{" "}
-        <Link href="/commands">Commands</Link> and <Link href="/scopes">Scopes</Link>.
+        <Link href="/commands">Commands</Link> and <Link href="/scopes">Regions</Link>.
       </p>
 
       <h2>3. Wire up the provider</h2>
@@ -110,29 +80,30 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <h2>4. Register commands from components</h2>
       <p>
         Commands register on mount and unregister on unmount. They use the nearest{" "}
-        <code>CommandScope</code> ancestor for scope and merged context.
+        <code>CommandRegion</code> ancestor for region and merged context. Nesting regions in JSX{" "}
+        <em>is</em> the hierarchy—no parallel config tree.
       </p>
-      <CodeBlock title="features/tasks/task-list.tsx">{`import { CommandScope, useRegisterCommands } from 'commandry/react'
+      <CodeBlock title="features/tasks/task-list.tsx">{`import { CommandRegion, useRegisterCommands } from 'commandry/react'
 import { taskCommands } from './commands'
 
 function TaskList({ tasks, listId }: { tasks: Task[]; listId: string }) {
   return (
-    <CommandScope scope="task-list" ctx={{ listId }}>
+    <CommandRegion region="task-list" ctx={{ listId }}>
       {tasks.map((task) => (
-        <CommandScope
+        <CommandRegion
           key={task.id}
-          scope="task-item"
+          region="task-item"
           ctx={{ taskId: task.id, task }}
         >
           <TaskItem task={task} />
-        </CommandScope>
+        </CommandRegion>
       ))}
-    </CommandScope>
+    </CommandRegion>
   )
 }
 
 function TaskItem({ task }: { task: Task }) {
-  useRegisterCommands(taskCommands) // inherits scope 'task-item' from parent
+  useRegisterCommands(taskCommands) // inherits region 'task-item' from parent
 
   return <TaskRow task={task} />
 }`}</CodeBlock>
@@ -141,13 +112,12 @@ function TaskItem({ task }: { task: Task }) {
       <p>
         <code>useRegisterCommands</code> depends on the <strong>commands object reference</strong>.
         Passing a new inline object every render will unregister and re-register repeatedly. Prefer a
-        module-level <code>defineCommands({`{ ... }`})</code> map, or memoize:
+        module-level map, or memoize:
       </p>
       <CodeBlock>{`const commands = useMemo(
-  () =>
-    defineCommands({
-      'item.rename': { label: 'Rename', handler: () => rename(id) },
-    }),
+  (): CommandDefinitionMap => ({
+    'item.rename': { label: 'Rename', handler: () => rename(id) },
+  }),
   [id, rename],
 )
 useRegisterCommands(commands)`}</CodeBlock>
@@ -162,7 +132,7 @@ useRegisterCommands(commands)`}</CodeBlock>
           <Link href="/commands">Commands</Link> — fields, visibility, kinds, async handlers
         </li>
         <li>
-          <Link href="/scopes">Scopes</Link> — <code>activateOn</code>, context merging, dev warnings
+          <Link href="/scopes">Regions</Link> — <code>active</code>, <code>hover</code>, context merging
         </li>
         <li>
           <Link href="/shortcuts">Shortcuts</Link> — chords, sequences, collisions
@@ -175,10 +145,10 @@ useRegisterCommands(commands)`}</CodeBlock>
       <h2>Advanced (optional)</h2>
       <p>
         <strong>Command palette and focus:</strong> opening cmdk can move focus and clear pointer-based
-        scopes before the palette reads them. Call{" "}
-        <code>registry.pinActiveScopeSnapshot()</code> synchronously when opening the dialog, then use{" "}
-        <code>registry.getActiveScopeSnapshotPin()</code> when filtering search until{" "}
-        <code>registry.clearActiveScopeSnapshotPin()</code>. Alternatively use{" "}
+        regions before the palette reads them. Call{" "}
+        <code>registry.pinContext(resolveActiveContext())</code> synchronously when opening the dialog,
+        then use <code>registry.getContextPin()</code> when filtering search until{" "}
+        <code>registry.clearContextPin()</code>. Alternatively use{" "}
         <code>useCommandPalettePin(open)</code> from <code>commandry/react</code> when you cannot pin
         in the event path.
       </p>
@@ -190,11 +160,11 @@ useRegisterCommands(commands)`}</CodeBlock>
       </p>
       <p>
         <strong>
-          <code>activateOn</code>:
+          <code>active</code> and <code>hover</code>:
         </strong>{" "}
-        <code>pointer</code> (default) follows hover; <code>focus</code> / <code>both</code> suit
-        keyboard-driven lists; <code>mount</code> keeps the scope active whenever the subtree is
-        mounted (e.g. split panes). Details on <Link href="/scopes">Scopes</Link>.
+        By default regions follow pointer hover. Set <code>active</code> so a region participates
+        without hover (selected row, reading pane). Set <code>hover={false}</code> for mount-only shells.
+        Details on <Link href="/scopes">Regions</Link>.
       </p>
     </DocProse>
   );

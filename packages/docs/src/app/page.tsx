@@ -13,13 +13,13 @@ export default function OverviewPage() {
   return (
     <DocProse>
       <h1>Commandry</h1>
-      <p className="text-base font-[450] text-black/65 dark:text-white/65">
+      <p className="text-pretty">
         One registry for every surface in your React app — command palettes, context menus,
         toolbars, and keyboard shortcuts stay consistent because they read from the same
         definitions.
       </p>
 
-      <p>
+      <p className="text-pretty">
         Most apps scatter actions across files: a shortcut here, a menu label there. Labels
         drift, shortcuts collide, and adding a feature means touching several components.
         Commandry keeps each action&apos;s label, icon, shortcut, scope, and handler in one
@@ -37,44 +37,34 @@ export default function OverviewPage() {
 
       <h2>How it works</h2>
 
-      <div className="not-prose mt-2 flex flex-col gap-8">
+      <div className="not-prose mt-2 flex flex-col gap-14 sm:gap-16">
         <section>
-          <h3 className="mb-2 text-base font-semibold tracking-tight text-[#111] dark:text-[#e8e8e8]">
-            1. Define scopes
+          <h3 className="mb-2 text-balance text-sm font-medium text-muted-foreground">
+            1. Create the registry
           </h3>
-          <p className="mb-2 text-base font-[450] leading-normal text-black/65 dark:text-white/65">
-            Mirror your UI tree in <code className="rounded bg-black/[0.04] px-1 py-0.5 font-mono text-base dark:bg-white/[0.08]">scopes</code> — nesting is the parent/child relationship.
+          <p className="mb-2 text-pretty">
+            One shared registry for every surface in the app.
           </p>
-          <CodeBlock title="lib/commandry.ts">{`import { createCommandry } from 'commandry'
+          <CodeBlock title="lib/commandry.ts">{`import { createRegistry } from 'commandry'
 
-export const { registry, defineCommands } = createCommandry({
-  scopes: {
-    page: {
-      children: {
-        'task-list': {
-          children: { 'task-item': {} },
-        },
-        canvas: {
-          children: { 'canvas-node': {} },
-        },
-      },
-    },
-  },
-})`}</CodeBlock>
+export const registry = createRegistry()`}</CodeBlock>
         </section>
 
         <section>
-          <h3 className="mb-2 text-base font-semibold tracking-tight text-[#111] dark:text-[#e8e8e8]">
+          <h3 className="mb-2 text-balance text-sm font-medium text-muted-foreground">
             2. Register commands
           </h3>
-          <p className="mb-2 text-base font-[450] leading-normal text-black/65 dark:text-white/65">
-            Colocate commands with features; scope comes from the nearest{" "}
-            <code className="rounded bg-black/[0.04] px-1 py-0.5 font-mono text-base dark:bg-white/[0.08]">CommandScope</code>.
+          <p className="mb-2 text-pretty">
+            Colocate commands with features; region comes from the nearest{" "}
+            <code className="rounded bg-overlay-subtle px-1 py-0.5 font-mono text-[0.9375rem] text-foreground">
+              CommandRegion
+            </code>
+            .
           </p>
-          <CodeBlock title="features/tasks/commands.ts">{`import { Plus, Trash2 } from 'lucide-react'
-import { defineCommands } from '@/lib/commandry'
+          <CodeBlock title="features/tasks/commands.ts">{`import type { CommandDefinitionMap } from 'commandry'
+import { Plus, Trash2 } from 'lucide-react'
 
-export const taskCommands = defineCommands({
+export const taskCommands: CommandDefinitionMap = {
   'task.create': {
     label: 'New Task',
     icon: Plus,
@@ -89,19 +79,25 @@ export const taskCommands = defineCommands({
     group: 'Tasks',
     handler: ({ ctx }) => deleteTask(ctx.taskId),
   },
-})`}</CodeBlock>
+}`}</CodeBlock>
         </section>
 
         <section>
-          <h3 className="mb-2 text-base font-semibold tracking-tight text-[#111] dark:text-[#e8e8e8]">
-            3. Provider &amp; scopes
+          <h3 className="mb-2 text-balance text-sm font-medium text-muted-foreground">
+            3. Provider &amp; regions
           </h3>
-          <p className="mb-2 text-base font-[450] leading-normal text-black/65 dark:text-white/65">
+          <p className="mb-2 text-pretty">
             Wrap the app with the provider, then nest{" "}
-            <code className="rounded bg-black/[0.04] px-1 py-0.5 font-mono text-base dark:bg-white/[0.08]">CommandScope</code> and{" "}
-            <code className="rounded bg-black/[0.04] px-1 py-0.5 font-mono text-base dark:bg-white/[0.08]">useRegisterCommands</code> where commands should apply.
+            <code className="rounded bg-overlay-subtle px-1 py-0.5 font-mono text-[0.9375rem] text-foreground">
+              CommandRegion
+            </code>{" "}
+            and{" "}
+            <code className="rounded bg-overlay-subtle px-1 py-0.5 font-mono text-[0.9375rem] text-foreground">
+              useRegisterCommands
+            </code>{" "}
+            where commands should apply.
           </p>
-          <CodeBlock title="app/layout.tsx & feature">{`import { CommandryProvider, CommandScope, useRegisterCommands } from 'commandry/react'
+          <CodeBlock title="app/layout.tsx & feature">{`import { CommandryProvider, CommandRegion, useRegisterCommands } from 'commandry/react'
 import { registry } from '@/lib/commandry'
 import { taskCommands } from '@/features/tasks/commands'
 
@@ -113,13 +109,13 @@ export function RootLayout({ children }: { children: React.ReactNode }) {
 
 function TaskList({ listId }: { listId: string }) {
   return (
-    <CommandScope scope="task-list" ctx={{ listId }}>
+    <CommandRegion region="task-list" ctx={{ listId }}>
       {tasks.map((task) => (
-        <CommandScope key={task.id} scope="task-item" ctx={{ taskId: task.id, task }}>
+        <CommandRegion key={task.id} region="task-item" ctx={{ taskId: task.id, task }}>
           <TaskItem task={task} />
-        </CommandScope>
+        </CommandRegion>
       ))}
-    </CommandScope>
+    </CommandRegion>
   )
 }
 
@@ -130,11 +126,11 @@ function TaskItem({ task }: { task: Task }) {
         </section>
 
         <section>
-          <h3 className="mb-2 text-base font-semibold tracking-tight text-[#111] dark:text-[#e8e8e8]">
+          <h3 className="mb-2 text-balance text-sm font-medium text-muted-foreground">
             4. Render surfaces
           </h3>
-          <p className="mb-2 text-base font-[450] leading-normal text-black/65 dark:text-white/65">
-            Read the same registry in a toolbar, cmdk palette, or context menu — here, listing resolved commands for the active scope.
+          <p className="mb-2 text-pretty">
+            Read the same registry in a toolbar, cmdk palette, or context menu — here, listing resolved commands for the active region.
           </p>
           <CodeBlock title="components/quick-toolbar.tsx">{`'use client'
 
@@ -158,9 +154,11 @@ export function QuickToolbar() {
     </div>
   )
 }`}</CodeBlock>
-          <p className="mt-2 text-base font-[450] leading-normal text-black/55 dark:text-white/55">
+          <p className="mt-2 text-pretty text-text-tertiary">
             For search + cmdk, use{" "}
-            <code className="rounded bg-black/[0.04] px-1 py-0.5 font-mono text-base dark:bg-white/[0.08]">useCommandSearch</code>{" "}
+            <code className="rounded bg-overlay-subtle px-1 py-0.5 font-mono text-[0.9375rem] text-foreground">
+              useCommandSearch
+            </code>{" "}
             and wire results into your palette component — see the repo demo app.
           </p>
         </section>

@@ -271,9 +271,9 @@ export function OverviewHeroCodePanel({ className }: { className?: string }) {
       <Tabs
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as OverviewHeroPanelTab)}
-        className="my-2 mr-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md min-[980px]:border-b min-[980px]:border-r min-[980px]:border-border"
+        className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-none border-t border-border max-lg:my-2 min-[980px]:border-t-0 min-[980px]:border-l min-[980px]:border-border"
       >
-        <div className="overview-hero-code-tablist-chrome shrink-0 overflow-hidden rounded-t-md">
+        <div className="overview-hero-code-tablist-chrome shrink-0 overflow-hidden">
           <TabsList className="shrink-0 gap-1">
             {OVERVIEW_HERO_CODE_TAB_ORDER.map((id) => (
               <TabsTrigger
@@ -287,7 +287,7 @@ export function OverviewHeroCodePanel({ className }: { className?: string }) {
           </TabsList>
         </div>
 
-        <div className="dark flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-b-md bg-background min-[980px]:border-l min-[980px]:border-border">
+        <div className="dark flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
           {OVERVIEW_HERO_CODE_TAB_ORDER.map((id) => (
             <TabsContent
               key={id}

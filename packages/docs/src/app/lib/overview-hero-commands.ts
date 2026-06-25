@@ -1,3 +1,4 @@
+import type { CommandDefinitionMap } from "commandry"
 import {
   Archive,
   Copy,
@@ -9,10 +10,7 @@ import {
 import { createElement } from "react"
 import { toast } from "sonner"
 import { HeroShortcutToastLabel } from "@/app/components/overview-hero-shortcut-toast-label"
-import {
-  defineCommands,
-  OVERVIEW_HERO_TOASTER_ID,
-} from "@/app/lib/overview-hero-registry"
+import { OVERVIEW_HERO_TOASTER_ID } from "@/app/lib/overview-hero-registry"
 
 const DEMO_URL = "https://github.com/austinmrobinson/commandry"
 
@@ -88,8 +86,10 @@ function toastHeroActionBurst(commandId: string, label: string) {
  * `getToastTrigger` should return how the current execution was triggered (set by the caller
  * around `registry.execute`).
  */
-export function heroDemoCommands(getToastTrigger: () => HeroToastTrigger | null) {
-  return defineCommands({
+export function heroDemoCommands(
+  getToastTrigger: () => HeroToastTrigger | null,
+): CommandDefinitionMap {
+  return {
     "hero.copy": {
       label: "Copy link",
       icon: Copy,
@@ -175,5 +175,5 @@ export function heroDemoCommands(getToastTrigger: () => HeroToastTrigger | null)
         }
       },
     },
-  })
+  }
 }

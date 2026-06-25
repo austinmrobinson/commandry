@@ -45,8 +45,8 @@ function DocsNavLink({
           "bg-transparent hover:bg-transparent active:bg-transparent",
           "data-active:bg-transparent data-open:hover:bg-transparent",
           active
-            ? "font-[550] text-black/80 data-active:text-black/80 [font-variation-settings:'wght'_550] dark:text-white/85 dark:data-active:text-white/85"
-            : "text-muted-foreground hover:text-foreground/85 dark:hover:text-white/75"
+            ? "font-medium text-foreground data-active:text-foreground"
+            : "text-muted-foreground hover:text-foreground/85"
         )}
       >
         {title}
@@ -57,17 +57,12 @@ function DocsNavLink({
 
 export function DocsSidebarContent({
   onLinkClick,
-  /** Mobile sheet: real logo here. Desktop: fixed `DocsSiteLogo` + spacer (except on `/`). */
+  /** Mobile sheet: show logo above nav links. */
   showInlineLogo = false,
 }: {
   onLinkClick?: () => void;
   showInlineLogo?: boolean;
 }) {
-  const pathname = usePathname();
-  const isOverview = pathname === "/";
-  /** On homepage the floating mark sits over the hero — no empty header block in the rail. */
-  const showDesktopHeaderSpacer = !isOverview && !showInlineLogo;
-
   return (
     <SidebarContent className="gap-2 overflow-visible px-0.5 pt-1">
       {showInlineLogo ? (
@@ -95,10 +90,6 @@ export function DocsSidebarContent({
             </span>
           </Link>
           <span className="sr-only">Commandry</span>
-        </SidebarHeader>
-      ) : showDesktopHeaderSpacer ? (
-        <SidebarHeader className="mb-3 p-0" aria-hidden>
-          <div className="h-10 w-10 shrink-0" />
         </SidebarHeader>
       ) : null}
 

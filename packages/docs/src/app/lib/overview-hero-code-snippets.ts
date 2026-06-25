@@ -94,12 +94,11 @@ export const OVERVIEW_HERO_REGISTRY_BLOCKS: { id: string; code: string }[] = [
 ]
 
 const OVERVIEW_HERO_REGISTRY_PREFIX = `export function heroDemoCommands(getToastTrigger: () => HeroToastTrigger | null) {
-  return defineCommands({`
+  return {`
 
 const OVERVIEW_HERO_REGISTRY_SUFFIX = `
-  })
-}
-`
+  }
+}`
 
 /** Single scrollable source for the Commands tab (blocks joined inside exported factory). */
 export const OVERVIEW_HERO_REGISTRY_FULL =
@@ -138,13 +137,13 @@ export const OVERVIEW_HERO_SURFACE_SNIPPETS: Record<
     code: `export function ContextMenuSurface() {
   const handleContextMenuCapture = useCallback(
     (e: React.MouseEvent) => {
-      const { scope } = resolveCommandryScopeFromTarget(e.target)
+      const { context } = resolveRegionFromTarget(e.target)
       const snapshot = registry.getCommands()
       setPinnedModel(
-        buildContextMenuModelFromScope({
+        buildContextMenuModel({
           commands: snapshot,
-          menuScope: scope,
-          scopeTree: registry.scopeTree,
+          context,
+          modes: registry.getModes(),
         }),
       )
       setContextMenuOpen(true)
@@ -173,7 +172,7 @@ export const OVERVIEW_HERO_SURFACE_SNIPPETS: Record<
     filename: "overview-hero-live.tsx (palette)",
     code: `export function CommandPalette() {
   const { search, setSearch } = useCommandSearch({
-    scopes: [OVERVIEW_HERO_SCOPE],
+    regions: [OVERVIEW_HERO_REGION],
   })
 
   return (

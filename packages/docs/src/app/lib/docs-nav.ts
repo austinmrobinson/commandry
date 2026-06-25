@@ -16,7 +16,7 @@ export const docsNav: NavSection[] = [
     title: "Concepts",
     children: [
       { title: "Commands", href: "/commands" },
-      { title: "Scopes", href: "/scopes" },
+      { title: "Regions", href: "/scopes" },
       { title: "Shortcuts", href: "/shortcuts" },
     ],
   },

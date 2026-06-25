@@ -1,4 +1,12 @@
-import { useContext, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { Slot } from '@radix-ui/react-slot'
+import {
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  type ReactNode,
+  type Ref,
+} from 'react'
 import {
   DATA_COMMANDRY_ACTIVE,
   DATA_COMMANDRY_HOVER,
@@ -25,6 +33,13 @@ export interface CommandRegionProps {
   /** When false, pointer resolution skips this region (default true). */
   hover?: boolean
   anchor?: CommandRegionAnchor
+  /**
+   * Merge props onto the single child instead of rendering a wrapper `div`.
+   * The child must be a React element that can hold a ref (native element or `forwardRef`).
+   */
+  asChild?: boolean
+  /** Applied to the default wrapper `div`, or merged onto the child when `asChild` is true. */
+  className?: string
   children: ReactNode
 }
 
@@ -34,6 +49,8 @@ export function CommandRegion({
   active = false,
   hover = true,
   anchor,
+  asChild = false,
+  className,
   children,
 }: CommandRegionProps) {
   useContext(CommandryContext)
@@ -59,22 +76,30 @@ export function CommandRegion({
     }
   }, [ctx])
 
+  const regionDataProps = {
+    className,
+    [DATA_COMMANDRY_REGION]: region,
+    ...(active ? { [DATA_COMMANDRY_ACTIVE]: 'true' } : {}),
+    ...(!hover ? { [DATA_COMMANDRY_HOVER]: 'false' } : {}),
+    ...(anchor?.threadId != null && anchor.threadId !== ''
+      ? { [DATA_COMMANDRY_THREAD_ID]: anchor.threadId }
+      : {}),
+    ...(anchor?.messageId != null && anchor.messageId !== ''
+      ? { [DATA_COMMANDRY_MESSAGE_ID]: anchor.messageId }
+      : {}),
+  }
+
   return (
     <RegionContext.Provider value={regionContextValue}>
-      <div
-        ref={ref}
-        data-commandry-region={region}
-        {...(active ? { [DATA_COMMANDRY_ACTIVE]: 'true' } : {})}
-        {...(!hover ? { [DATA_COMMANDRY_HOVER]: 'false' } : {})}
-        {...(anchor?.threadId != null && anchor.threadId !== ''
-          ? { [DATA_COMMANDRY_THREAD_ID]: anchor.threadId }
-          : {})}
-        {...(anchor?.messageId != null && anchor.messageId !== ''
-          ? { [DATA_COMMANDRY_MESSAGE_ID]: anchor.messageId }
-          : {})}
-      >
-        {children}
-      </div>
+      {asChild ? (
+        <Slot ref={ref as Ref<HTMLElement>} {...regionDataProps}>
+          {children}
+        </Slot>
+      ) : (
+        <div ref={ref} {...regionDataProps}>
+          {children}
+        </div>
+      )}
     </RegionContext.Provider>
   )
 }

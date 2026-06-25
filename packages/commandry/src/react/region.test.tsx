@@ -1,20 +1,21 @@
 import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { CommandRegistry } from '../core/registry'
+import { DATA_COMMANDRY_REGION } from '../dom/region-attributes'
 import { CommandryProvider } from './provider'
-import { CommandScope } from './scope'
+import { CommandRegion } from './region'
 
-describe('CommandScope', () => {
-  it('renders a wrapper div by default with data-commandry-scope', () => {
+describe('CommandRegion', () => {
+  it('renders a wrapper div by default with data-commandry-region', () => {
     const registry = new CommandRegistry()
     const { container } = render(
       <CommandryProvider registry={registry}>
-        <CommandScope scope="page" ctx={{}} activateOn="mount">
+        <CommandRegion region="page" ctx={{}} active>
           <span>child</span>
-        </CommandScope>
+        </CommandRegion>
       </CommandryProvider>,
     )
-    const root = container.querySelector('[data-commandry-scope="page"]')
+    const root = container.querySelector(`[${DATA_COMMANDRY_REGION}="page"]`)
     expect(root?.tagName).toBe('DIV')
     expect(root?.textContent).toContain('child')
   })
@@ -23,20 +24,20 @@ describe('CommandScope', () => {
     const registry = new CommandRegistry()
     const { container } = render(
       <CommandryProvider registry={registry}>
-        <CommandScope
+        <CommandRegion
           asChild
-          scope="page"
+          region="page"
           ctx={{}}
-          activateOn="mount"
+          active
           className="layout-root"
         >
           <section data-testid="section">in</section>
-        </CommandScope>
+        </CommandRegion>
       </CommandryProvider>,
     )
-    expect(container.querySelectorAll('div[data-commandry-scope]').length).toBe(0)
+    expect(container.querySelectorAll(`div[${DATA_COMMANDRY_REGION}]`).length).toBe(0)
     const section = container.querySelector('[data-testid="section"]')
-    expect(section?.getAttribute('data-commandry-scope')).toBe('page')
+    expect(section?.getAttribute(DATA_COMMANDRY_REGION)).toBe('page')
     expect(section?.classList.contains('layout-root')).toBe(true)
   })
 })

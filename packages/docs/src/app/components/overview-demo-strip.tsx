@@ -11,15 +11,20 @@ import { OverviewHeroCodePanel } from "@/app/components/overview-hero-code-panel
 import { OverviewHeroSlot } from "@/app/components/overview-hero-slot"
 import { cn } from "@/app/lib/utils"
 
-function OverviewDemoStripFigure() {
+/** ~30% taller than the original 400px cap; keeps a floor on short viewports. */
+const DEMO_FIGURE_HEIGHT =
+  "h-[min(520px,75dvh)] max-h-[520px] min-h-[364px]"
+
+function OverviewDemoFigure() {
   const { codePanelExpanded } = useOverviewHeroDemoBridge()
 
   return (
     <figure
       className={cn(
-        "grid h-[400px] max-h-[400px] min-h-0 w-full items-stretch overflow-visible",
+        "grid w-full min-w-0 items-stretch overflow-visible",
+        DEMO_FIGURE_HEIGHT,
         codePanelExpanded
-          ? "grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] min-[980px]:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] min-[980px]:grid-rows-[minmax(0,1fr)]"
+          ? "grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:grid-rows-[minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,28rem)]"
           : "grid-cols-1 grid-rows-[minmax(0,1fr)]",
       )}
     >
@@ -28,13 +33,7 @@ function OverviewDemoStripFigure() {
       </span>
       <OverviewHeroSlot className="relative h-full min-h-0 w-full" />
       {codePanelExpanded ? (
-        <div
-          className={cn(
-            "min-h-0 h-full w-full",
-            /* 4px inset on wide layout: mat shows through so the code panel reads as a tile. */
-            "min-[980px]:box-border min-[980px]:bg-muted/45 min-[980px]:pb-1 min-[980px]:pr-1",
-          )}
-        >
+        <div className="min-h-0 h-full min-w-0 w-full">
           <OverviewHeroCodePanel className="h-full min-h-0 w-full" />
         </div>
       ) : null}
@@ -42,8 +41,8 @@ function OverviewDemoStripFigure() {
   )
 }
 
-/** Full-width strip above the docs two-column layout (overview only). */
-export function OverviewDemoStrip() {
+/** Interactive demo panel — sits in the right column on overview (dotcom preview slot). */
+export function OverviewDemoPanel({ className }: { className?: string }) {
   const heroRef = useRef<OverviewHeroHandle | null>(null)
 
   return (
@@ -51,13 +50,26 @@ export function OverviewDemoStrip() {
       <section
         id="overview-demo-strip"
         className={cn(
-          "not-prose relative isolate -mt-4 w-full border-b border-black/[0.06] bg-background pt-0 sm:-mt-6 dark:border-white/10 dark:bg-background",
-          "mb-8 min-[980px]:mb-10"
+          "not-prose relative isolate min-w-0",
+          "min-[980px]:flex min-[980px]:h-[calc(100dvh-5rem)] min-[980px]:items-center",
+          className,
         )}
         aria-label="Interactive demo"
       >
-        <OverviewDemoStripFigure />
+        <OverviewDemoFigure />
       </section>
     </OverviewHeroDemoBridgeProvider>
+  )
+}
+
+/** @deprecated Use {@link OverviewDemoPanel} in the overview split layout. */
+export function OverviewDemoStrip() {
+  return (
+    <OverviewDemoPanel
+      className={cn(
+        "w-full border-b border-border-subtle bg-background",
+        "mb-8 min-[980px]:mb-10",
+      )}
+    />
   )
 }

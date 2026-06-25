@@ -14,8 +14,8 @@ export default function CommandsPage() {
       <p>
         A command is a single user-facing action: a unique id, a <code>label</code>, and a{" "}
         <code>handler</code>. Everything else—icon, shortcut, scope, grouping, and behavior flags—is
-        optional. Commands are plain objects registered with <code>defineCommands</code> and resolved
-        through the shared registry.
+        optional. Commands are plain objects in a <code>CommandDefinitionMap</code>, registered with{" "}
+        <code>useRegisterCommands</code>, and resolved through the shared registry.
       </p>
 
       <h2>Command shape</h2>
@@ -39,7 +39,7 @@ export default function CommandsPage() {
   // Behavior
   handler: (args: { ctx }) => void | Promise<void>
   shortcut?: Shortcut | Shortcut[]    // single or multiple bindings
-  scope?: ScopeKey                    // omit to inherit from nearest CommandScope
+  scope?: string                       // omit to inherit from nearest CommandRegion
   when?: () => boolean                // false = hidden entirely
   enabled?: () => boolean             // false = visible but grayed out
 
@@ -96,18 +96,18 @@ export default function CommandsPage() {
 // cmd.visible  — false if when() is false
 // cmd.disabled — true if enabled() is false`}</CodeBlock>
 
-      <h2>Scope inference</h2>
+      <h2>Region inference</h2>
       <p>
-        Commands inherit scope from the nearest <code>CommandScope</code> ancestor where{" "}
+        Commands inherit region from the nearest <code>CommandRegion</code> ancestor where{" "}
         <code>useRegisterCommands</code> runs. An explicit <code>scope</code> on the definition always
-        wins. See <Link href="/scopes">Scopes</Link>.
+        wins. See <Link href="/scopes">Regions</Link>.
       </p>
-      <CodeBlock>{`const taskItemCommands = defineCommands({
+      <CodeBlock>{`const taskItemCommands: CommandDefinitionMap = {
   'task.open':   { label: 'Open Task',   handler: ({ ctx }) => open(ctx.taskId) },
   'task.delete': { label: 'Delete Task', handler: ({ ctx }) => del(ctx.taskId) },
-})
+}
 
-// Registered inside task-item — inherits that scope
+// Registered inside task-item — inherits that region
 'tasks.create': {
   label: 'New Task',
   scope: 'task-list',  // explicit override
@@ -116,7 +116,7 @@ export default function CommandsPage() {
 
       <h2>Unscoped (global) commands</h2>
       <p>
-        Commands with no <code>scope</code>, registered outside any <code>CommandScope</code>, are{" "}
+        Commands with no <code>scope</code>, registered outside any <code>CommandRegion</code>, are{" "}
         <strong>global</strong>: always active and always available in the palette regardless of
         pointer or focus.
       </p>
